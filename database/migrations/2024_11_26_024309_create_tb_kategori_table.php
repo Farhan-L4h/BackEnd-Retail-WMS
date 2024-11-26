@@ -11,15 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
-            $table->id('id_user');
-            $table->string('username');
-            $table->string('email')->unique();
-            $table->string('password');
-            $table->enum('role', ['admin', 'staff'])->default('staff');
+        Schema::create('tb_kategori', function (Blueprint $table) {
+            $table->id('id_kategori');
+            $table->string('nama_kategori', 100);
             $table->timestamp('tanggal_dibuat')->nullable();
-	        $table->timestamp('tanggal_update')->nullable();
+            $table->timestamp('tanggal_update')->nullable();
         });
+
     }
 
     /**
@@ -27,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('tb_kategori');
     }
 };

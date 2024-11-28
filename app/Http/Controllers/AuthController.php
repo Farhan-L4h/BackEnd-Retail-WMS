@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\supplier;
+use App\Models\SupplierModel;
 use Illuminate\Http\Request;
 
-class SupplierController extends Controller
+class AuthController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -34,7 +34,7 @@ class SupplierController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(supplier $supplier)
+    public function show($id)
     {
         //
     }
@@ -42,7 +42,7 @@ class SupplierController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(supplier $supplier)
+    public function edit($id)
     {
         //
     }
@@ -50,7 +50,7 @@ class SupplierController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, supplier $supplier)
+    public function update(Request $request, $id)
     {
         //
     }
@@ -58,7 +58,7 @@ class SupplierController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(supplier $supplier)
+    public function destroy($id)
     {
         //
     }

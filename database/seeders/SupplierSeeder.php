@@ -15,31 +15,31 @@ class SupplierSeeder extends Seeder
     {
         $data = [
             [
-                'id_supplier' => 1,
+                'id' => 1,
                 'nama_supplier' => 'PT.Mayora Indah Tbk',
                 'kontak' => '087654321',
                 'alamat'=> 'Jl. Tomang Indah'
             ],
             [
-                'id_supplier' => 2,
+                'id' => 2,
                 'nama_supplier' => 'PT. Gudang Garam Tbk',
                 'kontak'=> '082345678',
                 'alamat'=>'Jl. Semampir II'
             ],
             [
-                'id_supplier' => 3,
+                'id' => 3,
                 'nama_supplier' => 'PT. Tirta Investama',
                 'kontak' => '083579249',
                 'alamat'=>'Jl. Raya Surabaya'
             ],
             [
-                'id_supplier' => 4,
+                'id' => 4,
                 'nama_supplier' => 'PT. Unilever',
                 'kontak' =>'086543258',
                 'alamat'=>'Jl. BSD Boulevard Barat'
             ],
             [
-                'id_supplier' => 5,
+                'id' => 5,
                 'nama_supplier' => 'PT. Salim Ivomas Pratama Tbk',
                 'kontak' => '084335567',
                 'alamat' => 'Jl. Tanjung Tembaga'

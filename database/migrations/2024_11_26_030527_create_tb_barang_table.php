@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tb_barang', function (Blueprint $table) {
-            $table->id('id_barang');
+            $table->id('id');
             $table->string('image')->nullable();
             $table->unsignedBigInteger('id_kategori')->index();
             $table->unsignedBigInteger('id_supplier')->index();
@@ -23,8 +23,8 @@ return new class extends Migration
 	        $table->timestamp('tanggal_update')->nullable();
 
              // relasi
-            $table->foreign('id_kategori')->references('id_kategori')->on('tb_kategori');
-            $table->foreign('id_supplier')->references('id_supplier')->on('tb_supplier');
+            $table->foreign('id_kategori')->references('id')->on('tb_kategori');
+            $table->foreign('id_supplier')->references('id')->on('tb_supplier');
         });
     }
 

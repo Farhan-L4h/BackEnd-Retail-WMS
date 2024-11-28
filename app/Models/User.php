@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -12,16 +13,18 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
+    protected $table = 'users';
+    protected $primaryKey = 'id';
     protected $fillable = [
-        'name',
+        'username',
         'email',
         'password',
+        'role'
     ];
+
+    // Ganti default timestamps
+    const CREATED_AT = 'tanggal_dibuat';
+    const UPDATED_AT = 'tanggal_update';
 
     /**
      * The attributes that should be hidden for serialization.
@@ -41,4 +44,8 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function aktivitas(): HasMany {
+        return $this->hasMany(AktivitasModel::class, 'kategori_id', 'id');
+    }
 }

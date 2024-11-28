@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tb_pemindahan', function (Blueprint $table) {
-            $table->id('id_pindah');
+            $table->id('id');
             $table->unsignedBigInteger('id_barang')->index();
             $table->unsignedBigInteger('id_rak_asal')->index();
             $table->unsignedBigInteger('id_rak_tujuan')->index();
@@ -21,9 +21,9 @@ return new class extends Migration
 	        $table->timestamp('tanggal_update')->nullable();
 
             // Relasi
-            $table->foreign('id_barang')->references('id_barang')->on('tb_barang');
-            $table->foreign('id_rak_asal')->references('id_rak')->on('tb_rak');
-            $table->foreign('id_rak_tujuan')->references('id_rak')->on('tb_rak'); // Ubah ke id_rak_tujuan
+            $table->foreign('id_barang')->references('id')->on('tb_barang');
+            $table->foreign('id_rak_asal')->references('id')->on('tb_rak');
+            $table->foreign('id_rak_tujuan')->references('id')->on('tb_rak'); // Ubah ke id_rak_tujuan
 
         });
     }

@@ -15,7 +15,7 @@ class BarangSeeder extends Seeder
     {
         $data = [
             [
-                'id_barang' => 1,
+                'id' => 1,
                 'image' => 'images/default.png',
                 'id_kategori' => 1,
                 'id_supplier' => 1,
@@ -24,7 +24,7 @@ class BarangSeeder extends Seeder
                 'harga' => '3000',
             ],
             [
-                'id_barang' => 2,
+                'id' => 2,
                 'image' => 'images/default.png',
                 'id_kategori' => 2,
                 'id_supplier' => 2,
@@ -33,7 +33,7 @@ class BarangSeeder extends Seeder
                 'harga' => '26000',
             ],
             [
-                'id_barang' => 3,
+                'id' => 3,
                 'image' => 'images/default.png',
                 'id_kategori' => 3,
                 'id_supplier' => 3,
@@ -42,7 +42,7 @@ class BarangSeeder extends Seeder
                 'harga' => '11000',
             ],
             [
-                'id_barang' => 4,
+                'id' => 4,
                 'image' => 'images/default.png',
                 'id_kategori' => 4,
                 'id_supplier' => 4,
@@ -51,7 +51,7 @@ class BarangSeeder extends Seeder
                 'harga' => '25000',
             ],
             [
-               'id_barang' => 5,
+               'id' => 5,
                 'image' => 'images/default.png',
                 'id_kategori' => 5,
                 'id_supplier' => 5,

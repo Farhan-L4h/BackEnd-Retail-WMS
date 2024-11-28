@@ -178,8 +178,8 @@ class GudangController extends Controller
 
      public function updateSupplier(Request $request, $id)
      {
-        $supplier = SupplierModel::find($id);
-        dd($supplier);
+        $supplier = SupplierModel::findOrFail($id);
+
          if (!$supplier) {
              return response()->json([
                  'success' => false,
@@ -193,11 +193,7 @@ class GudangController extends Controller
              'alamat' => 'required|string',
          ]);
 
-         $supplier->update([
-             'nama_supplier' => $request->nama_supplier,
-             'kontak' => $request->kontak,
-             'alamat' => $request->alamat,
-         ]);
+         $supplier->update($request->all());
 
          return response()->json([
              'success' => true,
@@ -230,19 +226,19 @@ class GudangController extends Controller
       public function indexRak()
       {
           $rak = RakModel::all();
- 
+
           return response()->json([
               'success' => true,
               'message' => 'List semua rak',
               'data' => $rak
           ], 200);
       }
- 
+
       public function createRak()
       {
           //
       }
- 
+
       public function storeRak(Request $request)
       {
           $request->validate([
@@ -250,87 +246,87 @@ class GudangController extends Controller
               'nama_rak' => 'required|string|max:100',
               'lokasi_rak' => 'required|string',
           ]);
- 
+
           $rak = RakModel::create([
               'kode_rak' => $request->kode_rak,
               'nama_rak' => $request->nama_rak,
               'lokasi_rak' => $request->lokasi_rak,
           ]);
- 
+
           return response()->json([
               'success' => true,
               'message' => 'Rak berhasil dibuat',
               'data' => $rak
           ], 201);
       }
- 
+
       public function showRak($id)
       {
- 
+
           $rak = RakModel::find($id);
- 
+
           if (!$rak) {
               return response()->json([
                   'success' => false,
                   'message' => 'Rak tidak ditemukan',
               ], 404);
           }
- 
+
           return response()->json([
               'success' => true,
               'message' => 'Detail Rak',
               'data' => $rak
           ], 200);
       }
- 
+
       public function editRak($id)
       {
           //
       }
- 
+
       public function updateRak(Request $request, $id)
       {
           $rak = RakModel::find($id);
- 
+
           if (!$rak) {
               return response()->json([
                   'success' => false,
                   'message' => 'Rak tidak ditemukan',
               ], 404);
           }
- 
+
           $request->validate([
               'kode_rak' => 'required|string|max:20',
               'nama_rak' => 'required|string|max:100',
               'lokasi_rak' => 'required|string',
           ]);
- 
+
           $rak->update([
               'kode_rak' => $request->kode_rak,
               'nama_rak' => $request->nama_rak,
               'lokasi_rak' => $request->lokasi_rak,
           ]);
- 
+
           return response()->json([
               'success' => true,
               'message' => 'Rak berhasil diupdate',
               'data' => $rak
           ], 200);
       }
- 
+
       public function destroyRak($id)
       {
           $rak = RakModel::find($id);
- 
+
           if (!$rak) {
               return response()->json([
                   'success' => false,
                   'message' => 'Rak tidak ditemukan',
               ], 404);
           }
- 
+
           $rak->delete();
- 
+
           return response()->json([
               'success' => true,
               'message' => 'Rak berhasil dihapus',
@@ -341,7 +337,7 @@ class GudangController extends Controller
 
       public function index()
     {
-        $barang = BarangModel::with(['kategori', 'aktivitas', 'pemindahan'])->get();
+        $barang = BarangModel::with(['kategori','supplier'])->get();
 
         return response()->json([
             'success' => true,
@@ -352,7 +348,7 @@ class GudangController extends Controller
 
     public function show($id)
     {
-        $barang = BarangModel::with(['kategori', 'aktivitas', 'pemindahan'])->find($id);
+        $barang = BarangModel::with(['kategori','supplier'])->find($id);
 
         if (!$barang) {
             return response()->json([
@@ -372,8 +368,8 @@ class GudangController extends Controller
     {
         $request->validate([
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'id_kategori' => 'required|exists:tb_kategori,id_kategori',
-            'id_supplier' => 'required|exists:tb_supplier,id_supplier',
+            'id_kategori' => 'required|exists:tb_kategori,id',
+            'id_supplier' => 'required|exists:tb_supplier,id',
             'nama_barang' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
             'harga' => 'required|numeric|min:0',
@@ -414,8 +410,8 @@ class GudangController extends Controller
 
         $request->validate([
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'id_kategori' => 'required|exists:tb_kategori,id_kategori',
-            'id_supplier' => 'required|exists:tb_supplier,id_supplier',
+            'id_kategori' => 'required|exists:tb_kategori,id',
+            'id_supplier' => 'required|exists:tb_supplier,id',
             'nama_barang' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
             'harga' => 'required|numeric|min:0',

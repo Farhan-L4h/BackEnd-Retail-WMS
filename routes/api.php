@@ -55,12 +55,14 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     Route::delete('/barang/{id}/destroy', [GudangController::class, 'destroy'])->name('barang.destroy');
 
     // Aktivitas Barang
+    Route::get('/aktivitas', [AktivitasController::class, 'indexAktivitas'])->name('aktivitas.index');
     Route::post('/aktivitas', [AktivitasController::class, 'storeAktivitas'])-> name('aktivitas.store'); // Catat aktivitas
-    Route::get('/aktivitas/show', [AktivitasController::class, 'show'])->name('aktivitas.show'); // Show aktivitas
+    Route::get('/aktivitas/{id}/show', [AktivitasController::class, 'show'])->name('aktivitas.show'); // Show aktivitas
     Route::put('/aktivitas/{id}/update', [AktivitasController::class, 'updateAktivitas'])->name('aktivitas.update');
     Route::delete('/aktivitas/{id}/destroy', [AktivitasController::class, 'destroyAktivitas'])->name('aktivitas.destroy');
 
     // Pemindahan Barang
+    Route::get('/pemindahan', [AktivitasController::class, 'indexPemindahan'])->name('pemindahan.index');
     Route::post('/pemindahan', [AktivitasController::class, 'storePemindahan'])->name('pemindahan.store'); // Catat pemindahan
     Route::put('/pemindahan/{id}/update', [AktivitasController::class, 'updatePemindahan'])->name('pemindahan.update');
     Route::delete('/pemindahan/{id}/destroy', [AktivitasController::class, 'destroyPemindahan'])->name('pemindahan.destroy');

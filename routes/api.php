@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GudangController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AktivitasController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,7 +26,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 //Hanya Bisa diakses Admin
-Route::group(['middleware' => 'role:admin'], function () {
     //KATEGORI
     Route::get('/kategori', [GudangController::class, 'indexKategori'])->name('kategori.index');
     Route::get('/kategori/{id}/show', [GudangController::class, 'showKategori'])->name('kategori.show');
@@ -53,4 +53,14 @@ Route::group(['middleware' => 'role:admin'], function () {
     Route::post('/barang', [GudangController::class, 'store'])->name('barang.store');
     Route::put('/barang/{id}/update', [GudangController::class, 'update'])->name('barang.update');
     Route::delete('/barang/{id}/destroy', [GudangController::class, 'destroy'])->name('barang.destroy');
-});
+
+    // Aktivitas Barang
+    Route::post('/aktivitas', [AktivitasController::class, 'storeAktivitas'])-> name('aktivitas.store'); // Catat aktivitas
+    Route::get('/aktivitas/show', [AktivitasController::class, 'show'])->name('aktivitas.show'); // Show aktivitas
+    Route::put('/aktivitas/{id}/update', [AktivitasController::class, 'updateAktivitas'])->name('aktivitas.update');
+    Route::delete('/aktivitas/{id}/destroy', [AktivitasController::class, 'destroyAktivitas'])->name('aktivitas.destroy');
+
+    // Pemindahan Barang
+    Route::post('/pemindahan', [AktivitasController::class, 'storePemindahan'])->name('pemindahan.store'); // Catat pemindahan
+    Route::put('/pemindahan/{id}/update', [AktivitasController::class, 'updatePemindahan'])->name('pemindahan.update');
+    Route::delete('/pemindahan/{id}/destroy', [AktivitasController::class, 'destroyPemindahan'])->name('pemindahan.destroy');

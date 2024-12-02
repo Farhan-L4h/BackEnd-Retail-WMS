@@ -36,25 +36,36 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string'
+            'login' => 'required|string', // Bisa berupa email atau username
+            'password' => 'required|string',
         ]);
 
-        $credentials = $request->only('email', 'password');
+        // Ambil input 'login' yang bisa berupa email atau username
+        $login = $request->input('login');
+        $password = $request->input('password');
 
-        if(!$token = auth()->guard('api')->attempt($credentials)){
+        // Coba cari user berdasarkan email atau username
+        $user = User::where('email', $login)
+                    ->orWhere('username', $login)
+                    ->first();
+
+        if (!$user || !Hash::check($password, $user->password)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Email atau Password Anda Salah',
+                'message' => 'Login gagal, periksa email/username dan password Anda.',
             ], 401);
         }
 
+        // Buat token untuk user yang valid
+        $token = auth()->guard('api')->login($user);
+
         return response()->json([
             'success' => true,
-            'user' => auth()->guard('api')->user(),
-            'token' => $token
+            'user' => $user,
+            'token' => $token,
         ], 200);
     }
+
 
     public function logout()
     {

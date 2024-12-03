@@ -36,7 +36,7 @@ class AktivitasController extends Controller
             'jumlah_barang' => 'required|integer|min:1',
             'harga_barang' => 'required|integer|min:0',
             'status' => 'required|in:masuk,keluar',
-            'alasan' => 'nullable|in:diambil,return,dibuang',
+            'alasan' => 'nullable|in:diterima,diambil,return,dibuang',
         ]);
 
         // Total harga = jumlah x harga per barang
@@ -84,7 +84,7 @@ class AktivitasController extends Controller
             'jumlah_barang' => 'required|integer|min:1',
             'harga_barang' => 'required|integer|min:0',
             'status' => 'required|in:masuk,keluar',
-            'alasan' => 'nullable|in:diambil,return,dibuang',
+            'alasan' => 'nullable|in:diterima,diambil,return,dibuang',
         ]);
 
         $aktivitas = AktivitasModel::findOrFail($id);

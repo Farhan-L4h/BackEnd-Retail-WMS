@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\GudangController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AktivitasController;
+use App\Http\Controllers\LaporanController;
 
 /*
 |--------------------------------------------------------------------------
@@ -66,3 +67,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     Route::post('/pemindahan', [AktivitasController::class, 'storePemindahan'])->name('pemindahan.store'); // Catat pemindahan
     Route::put('/pemindahan/{id}/update', [AktivitasController::class, 'updatePemindahan'])->name('pemindahan.update');
     Route::delete('/pemindahan/{id}/destroy', [AktivitasController::class, 'destroyPemindahan'])->name('pemindahan.destroy');
+
+    // Laporan
+    Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan');

@@ -21,7 +21,7 @@ return new class extends Migration
             $table->integer('harga_barang');
             $table->integer('total_harga');
             $table->enum('status', ['masuk', 'keluar'])->default('masuk');
-            $table->enum('alasan', ['diambil', 'return', 'dibuang'])->default('diambil');
+            $table->enum('alasan', ['diterima','diambil', 'return', 'dibuang'])->default('diterima');
             $table->timestamp('tanggal_dibuat')->nullable();
 	        $table->timestamp('tanggal_update')->nullable();
 

@@ -18,6 +18,7 @@ class RakModel extends Model
     // Ganti default timestamps
     const CREATED_AT = 'tanggal_dibuat';
     const UPDATED_AT = 'tanggal_update';
+
     public function aktivitas() :HasMany
     {
         return $this->hasMany(    AktivitasModel::class);

@@ -399,7 +399,7 @@ class GudangController extends Controller
 
     public function update(Request $request, $id)
     {
-        $barang = BarangModel::find($id);
+        $barang = BarangModel::with(['kategori','supplier'])->find($id);
 
         if (!$barang) {
             return response()->json([
@@ -428,7 +428,7 @@ class GudangController extends Controller
             'id_supplier' => $request->id_supplier,
             'nama_barang' => $request->nama_barang,
             'deskripsi' => $request->deskripsi,
-            'harga' => $request->harga,
+            'harga' => $request->harga
         ]);
 
         return response()->json([

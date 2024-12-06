@@ -14,269 +14,328 @@ class AktivitasController extends Controller
 {
     public function indexAktivitas(Request $request)
     {
+        $stok = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
+    ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
+    ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_keluar")
+    ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                  COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+    ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+    ->groupBy('tb_barang.id')->get();
         // Ambil daftar aktivitas dengan relasi
-        $aktivitas = AktivitasModel::with(['barang', 'user', 'rak'])
-            ->when($request->status, function ($query, $status) {
-                return $query->where('status', $status); // Filter berdasarkan status (masuk/keluar)
-            })
-            ->orderBy('tanggal_dibuat', 'desc') // Urutkan berdasarkan tanggal terbaru
-            ->paginate(10); // Pagination, 10 data per halaman
-
+        $aktivitas = AktivitasModel::with(['barang', 'user', 'rak'])->get();
         return response()->json([
             'message' => 'Daftar aktivitas berhasil diambil',
+            'stok' => $stok,
             'data' => $aktivitas,
         ], 200);
     }
 
     public function storeAktivitas(Request $request)
-{
-    $request->validate([
-        'id_barang' => 'required|exists:tb_barang,id',
-        'id_user' => 'required|exists:users,id',
-        'id_rak' => 'required|exists:tb_rak,id',
-        'exp_barang' => 'nullable|date',
-        'jumlah_barang' => 'required|integer|min:1',
-        'harga_barang' => 'required|integer|min:0',
-        'status' => 'required|in:masuk,keluar',
-        'alasan' => 'nullable|in:diterima,diambil,return,dibuang',
-    ]);
+    {
+        $request->validate([
+            'id_barang' => 'required|exists:tb_barang,id',
+            'id_user' => 'required|exists:users,id',
+            'id_rak' => 'required|exists:tb_rak,id',
+            'exp_barang' => 'nullable|date',
+            'jumlah_barang' => 'required|integer|min:1',
+            'harga_barang' => 'required|integer|min:0',
+            'status' => 'required|in:masuk,keluar',
+            'alasan' => 'nullable|in:diterima,diambil,return,dibuang',
+        ]);
 
-    // Total harga = jumlah x harga per barang
-    $total_harga = $request->jumlah_barang * $request->harga_barang;
+        // Total harga = jumlah x harga per barang
+        $total_harga = $request->jumlah_barang * $request->harga_barang;
 
-    // Update stok barang
-    $barang = BarangModel::findOrFail($request->id_barang);
+        DB::beginTransaction();
+        try {
+            // Hitung stok barang berdasarkan aktivitas sebelumnya
+            $stok = BarangModel::selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                                            COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+                ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+                ->where('tb_barang.id', $request->id_barang)
+                ->groupBy('tb_barang.id')
+                ->value('stok');
+            // Tentukan batas stok minimum
+            $threshold = 10;
 
-    // Hitung stok berdasarkan status
-    if ($request->status === 'masuk') {
-        $barang->stok += $request->jumlah_barang;
-    } elseif ($request->status === 'keluar') {
-        if ($barang->stok < $request->jumlah_barang) {
-            return response()->json(['message' => 'Stok tidak mencukupi'], 400);
+            // Kirim event untuk broadcasting dan notifikasi stok rendah jika perlu
+            if ($stok < $threshold) {
+                event(new StokUpdated($request->id_barang, $stok));  // Mengirim event broadcast
+            }
+
+            if ($request->status === 'keluar' && $stok < $request->jumlah_barang) {
+                return response()->json(['message' => 'Stok barang tidak mencukupi'], 400);
+            }
+
+            // Simpan data aktivitas
+            $aktivitas = AktivitasModel::create([
+                'id_barang' => $request->id_barang,
+                'id_user' => $request->id_user,
+                'id_rak' => $request->id_rak,
+                'exp_barang' => $request->exp_barang,
+                'jumlah_barang' => $request->jumlah_barang,
+                'harga_barang' => $request->harga_barang,
+                'total_harga' => $total_harga,
+                'status' => $request->status,
+                'alasan' => $request->alasan,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Aktivitas berhasil ditambahkan',
+                'data' => $aktivitas,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Terjadi kesalahan saat menyimpan aktivitas', 'error' => $e->getMessage()], 500);
         }
-        $barang->stok -= $request->jumlah_barang;
     }
 
-    $barang->save();
-
-    // Hitung stok terbaru
-    $stok = DB::table('tb_aktivitas')
-        ->selectRaw("
-            SUM(CASE WHEN status = 'masuk' THEN jumlah_barang ELSE 0 END) -
-            SUM(CASE WHEN status = 'keluar' THEN jumlah_barang ELSE 0 END) as stok
-        ")
-        ->where('id_barang', $request->id_barang)
-        ->value('stok');
-
-    // Tentukan batas stok minimum
-    $threshold = 10;  // Misalnya, batas stok rendah adalah 10 unit
-
-    // Kirim event untuk broadcasting dan notifikasi stok rendah jika perlu
-    if ($stok < $threshold) {
-        event(new StokUpdated($request->id_barang, $stok));  // Mengirim event broadcast
-    }
-
-    // Simpan aktivitas
-    $aktivitas = AktivitasModel::create([
-        'id_barang' => $request->id_barang,
-        'id_user' => $request->id_user,
-        'id_rak' => $request->id_rak,
-        'exp_barang' => $request->exp_barang,
-        'jumlah_barang' => $request->jumlah_barang,
-        'harga_barang' => $request->harga_barang,
-        'total_harga' => $total_harga,
-        'status' => $request->status,
-        'alasan' => $request->alasan,
-        'tanggal_dibuat' => Carbon::now(),
-    ]);
-
-    return response()->json([
-        'message' => 'Aktivitas berhasil dicatat',
-        'data' => $aktivitas,
-    ], 201);
-}
 
     // Fungsi untuk menampilkan detail aktivitas berdasarkan id_barang
     public function show($id)
     {
-        // Ambil aktivitas berdasarkan id_barang
-        $aktivitas = DB::table('tb_aktivitas')
-            ->where('id_barang', $id)
-            ->select('id', 'id_barang', 'status', 'jumlah_barang', 'tanggal', 'keterangan')
-            ->orderBy('tanggal', 'desc') // Mengurutkan berdasarkan tanggal terbaru
-            ->get();
+        // Ambil barang berdasarkan ID
+        $barang = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_keluar")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                        COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+            ->where('tb_barang.id', $id)
+            ->groupBy('tb_barang.id')
+            ->first();
 
-        // Jika tidak ada aktivitas untuk barang tersebut
-        if ($aktivitas->isEmpty()) {
-            return response()->json([
-                'message' => 'Tidak ada aktivitas untuk barang ini.',
-            ], 404);
+        // Jika barang tidak ditemukan
+        if (!$barang) {
+            return response()->json(['message' => 'Barang tidak ditemukan'], 404);
         }
 
-        // Mengirimkan data aktivitas
+        // Ambil aktivitas terkait barang
+        $aktivitas = AktivitasModel::where('id_barang', $id)
+            ->with(['barang', 'user', 'rak'])
+            ->orderBy('tanggal_dibuat', 'desc')
+            ->get();
+
         return response()->json([
             'message' => 'Detail aktivitas berhasil diambil',
-            'data' => $aktivitas,
+            'barang' => $barang,
+            'aktivitas' => $aktivitas,
         ], 200);
     }
 
+    //Untuk Menampilkan Stok Rendah
+    public function getLowStockItems()
+    {
+        $lowStockItems = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                        COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+            ->groupBy('tb_barang.id', 'tb_barang.nama_barang')
+            ->havingRaw('stok <= ?', [10]) // Filter stok rendah
+            ->orderBy('stok', 'asc') // Urutkan stok terkecil
+            ->get();
+
+        return response()->json([
+            'message' => 'Barang dengan stok rendah berhasil diambil',
+            'data' => $lowStockItems,
+        ], 200);
+    }
+
+
+    //Untuk menampilkan Barang dengan tanggal kadaluarsa terdekat
+    public function getItemsWithNearestExpiry()
+    {
+        $itemsWithNearestExpiry = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang', 'tb_aktivitas.exp_barang')
+            ->join('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+            ->whereNotNull('tb_aktivitas.exp_barang') // Hanya barang dengan tanggal kadaluarsa
+            ->where('tb_aktivitas.exp_barang', '>=', Carbon::now()) // Tanggal kadaluarsa yang belum lewat
+            ->orderBy('tb_aktivitas.exp_barang', 'asc') // Urutkan berdasarkan tanggal kadaluarsa
+            ->get();
+
+        return response()->json([
+            'message' => 'Barang dengan tanggal kadaluarsa terdekat berhasil diambil',
+            'data' => $itemsWithNearestExpiry,
+        ], 200);
+    }
+
+
     public function updateAktivitas(Request $request, $id)
-{
-    $request->validate([
-        'id_barang' => 'required|exists:tb_barang,id',
-        'id_user' => 'required|exists:users,id',
-        'id_rak' => 'required|exists:tb_rak,id',
-        'exp_barang' => 'nullable|date',
-        'jumlah_barang' => 'required|integer|min:1',
-        'harga_barang' => 'required|integer|min:0',
-        'status' => 'required|in:masuk,keluar',
-        'alasan' => 'nullable|in:diterima,diambil,return,dibuang',
-    ]);
-
-    $aktivitas = AktivitasModel::findOrFail($id);
-    $barang = BarangModel::findOrFail($aktivitas->id_barang);
-
-    // Reset stok barang berdasarkan aktivitas lama
-    if ($aktivitas->status === 'masuk') {
-        $barang->stok -= $aktivitas->jumlah_barang;
-    } elseif ($aktivitas->status === 'keluar') {
-        $barang->stok += $aktivitas->jumlah_barang;
-    }
-
-    // Update stok barang berdasarkan aktivitas baru
-    if ($request->status === 'masuk') {
-        $barang->stok += $request->jumlah_barang;
-    } elseif ($request->status === 'keluar') {
-        if ($barang->stok < $request->jumlah_barang) {
-            return response()->json(['message' => 'Stok tidak mencukupi untuk diupdate'], 400);
-        }
-        $barang->stok -= $request->jumlah_barang;
-    }
-    $barang->save();
-
-    // Hitung stok terbaru
-    $stok = DB::table('tb_aktivitas')
-        ->selectRaw("
-            SUM(CASE WHEN status = 'masuk' THEN jumlah_barang ELSE 0 END) -
-            SUM(CASE WHEN status = 'keluar' THEN jumlah_barang ELSE 0 END) as stok
-        ")
-        ->where('id_barang', $request->id_barang)
-        ->value('stok');
-
-    // Tentukan batas stok minimum
-    $threshold = 10;  // Misalnya, batas stok rendah adalah 10 unit
-
-    // Kirim event untuk broadcasting dan notifikasi stok rendah jika perlu
-    if ($stok < $threshold) {
-        event(new StokUpdated($request->id_barang, $stok));  // Mengirim event broadcast
-    }
-
-    // Update aktivitas
-    $aktivitas->update([
-        'id_barang' => $request->id_barang,
-        'id_user' => $request->id_user,
-        'id_rak' => $request->id_rak,
-        'exp_barang' => $request->exp_barang,
-        'jumlah_barang' => $request->jumlah_barang,
-        'harga_barang' => $request->harga_barang,
-        'total_harga' => $request->jumlah_barang * $request->harga_barang,
-        'status' => $request->status,
-        'alasan' => $request->alasan,
-        'tanggal_update' => now(),
-    ]);
-
-    return response()->json([
-        'message' => 'Aktivitas berhasil diperbarui',
-        'data' => $aktivitas,
-    ]);
-}
-
-
-public function destroyAktivitas($id)
-{
-    $aktivitas = AktivitasModel::findOrFail($id);
-    $barang = BarangModel::findOrFail($aktivitas->id_barang);
-
-    // Reset stok barang berdasarkan aktivitas yang dihapus
-    if ($aktivitas->status === 'masuk') {
-        $barang->stok -= $aktivitas->jumlah_barang;
-    } elseif ($aktivitas->status === 'keluar') {
-        $barang->stok += $aktivitas->jumlah_barang;
-    }
-    $barang->save();
-
-    // Hitung stok terbaru
-    $stok = DB::table('tb_aktivitas')
-        ->selectRaw("
-            SUM(CASE WHEN status = 'masuk' THEN jumlah_barang ELSE 0 END) -
-            SUM(CASE WHEN status = 'keluar' THEN jumlah_barang ELSE 0 END) as stok
-        ")
-        ->where('id_barang', $barang->id)
-        ->value('stok');
-
-    // Tentukan batas stok minimum
-    $threshold = 10;  // Misalnya, batas stok rendah adalah 10 unit
-
-    // Kirim event untuk broadcasting dan notifikasi stok rendah jika perlu
-    if ($stok < $threshold) {
-        event(new StokUpdated($barang->id, $stok));  // Mengirim event broadcast
-    }
-
-    // Trigger event stok diperbarui
-    event(new StokUpdated($barang->id, $stok));
-
-    $aktivitas->delete();
-
-    return response()->json([
-        'message' => 'Aktivitas berhasil dihapus',
-    ]);
-}
-
-
-    public function storePemindahan(Request $request)
     {
         $request->validate([
             'id_barang' => 'required|exists:tb_barang,id',
-            'id_rak_asal' => 'required|exists:tb_rak,id',
-            'id_rak_tujuan' => 'required|exists:tb_rak,id',
-            'jumlah_pindah' => 'required|integer|min:1',
+            'id_user' => 'required|exists:users,id',
+            'id_rak' => 'required|exists:tb_rak,id',
+            'exp_barang' => 'nullable|date',
+            'jumlah_barang' => 'required|integer|min:1',
+            'harga_barang' => 'required|integer|min:0',
+            'status' => 'required|in:masuk,keluar',
+            'alasan' => 'nullable|in:diterima,diambil,return,dibuang',
         ]);
 
-        // Validasi stok di rak asal
-        $barang = BarangModel::findOrFail($request->id_barang);
-        if ($barang->stok < $request->jumlah_pindah) {
-            return response()->json(['message' => 'Stok tidak mencukupi untuk dipindahkan'], 400);
+        DB::beginTransaction();
+        try {
+            // Ambil aktivitas yang akan diupdate
+            $aktivitas = AktivitasModel::findOrFail($id);
+
+            // Hitung stok barang sebelum update
+            $stokSebelumUpdate = BarangModel::selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                                                        COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+                ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+                ->where('tb_barang.id', $aktivitas->id_barang)
+                ->groupBy('tb_barang.id')
+                ->value('stok');
+
+            // Hitung stok akhir setelah update
+            $stokSetelahUpdate = $stokSebelumUpdate;
+
+            // Tentukan batas stok minimum
+            $threshold = 10;
+
+            // Kirim event untuk broadcasting dan notifikasi stok rendah jika perlu
+            if ($stokSetelahUpdate < $threshold) {
+                event(new StokUpdated($request->id_barang, $stokSetelahUpdate));  // Mengirim event broadcast
+            }
+
+            // Kembalikan stok dari aktivitas lama
+            if ($aktivitas->status === 'masuk') {
+                $stokSetelahUpdate -= $aktivitas->jumlah_barang;
+            } elseif ($aktivitas->status === 'keluar') {
+                $stokSetelahUpdate += $aktivitas->jumlah_barang;
+            }
+
+            // Tambahkan stok berdasarkan data baru
+            if ($request->status === 'masuk') {
+                $stokSetelahUpdate += $request->jumlah_barang;
+            } elseif ($request->status === 'keluar') {
+                if ($stokSetelahUpdate < $request->jumlah_barang) {
+                    return response()->json(['message' => 'Stok barang tidak mencukupi'], 400);
+                }
+                $stokSetelahUpdate -= $request->jumlah_barang;
+            }
+
+            // Update data aktivitas
+            $aktivitas->update([
+                'id_barang' => $request->id_barang,
+            'id_user' => $request->id_user,
+            'id_rak' => $request->id_rak,
+            'exp_barang' => $request->exp_barang,
+            'jumlah_barang' => $request->jumlah_barang,
+            'harga_barang' => $request->harga_barang,
+            'total_harga' => $request->jumlah_barang * $request->harga_barang,
+            'status' => $request->status,
+            'alasan' => $request->alasan,
+            ]);
+
+            // Hitung stok terbaru
+            $stokTerbaru = BarangModel::selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                                                COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+                ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+                ->where('tb_barang.id', $request->id_barang)
+                ->groupBy('tb_barang.id')
+                ->value('stok');
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Aktivitas berhasil diperbarui',
+                'data' => $aktivitas,
+                'stok_terbaru' => $stokTerbaru, // Stok terbaru barang
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Terjadi kesalahan saat memperbarui aktivitas', 'error' => $e->getMessage()], 500);
         }
+    }
 
-        // Kurangi stok di rak asal dan tambahkan ke rak tujuan
-        $barang->stok -= $request->jumlah_pindah;
-        $barang->save();
+    public function destroyAktivitas(Request $request, $id)
+    {
+        DB::beginTransaction();
+        try {
+            // Ambil aktivitas yang akan dihapus
+            $aktivitas = AktivitasModel::findOrFail($id);
 
-        // Simpan pemindahan
-        $pemindahan = PemindahanModel::create([
-            'id_barang' => $request->id_barang,
-            'id_rak_asal' => $request->id_rak_asal,
-            'id_rak_tujuan' => $request->id_rak_tujuan,
-            'jumlah_pindah' => $request->jumlah_pindah,
-            'tanggal_dibuat' => now(),
-        ]);
+            // Hitung stok barang berdasarkan aktivitas sebelumnya
+            $stok = BarangModel::selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                                            COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+                ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+                ->where('tb_barang.id', $aktivitas->id_barang)
+                ->groupBy('tb_barang.id')->get();
 
-        // Hitung stok berdasarkan aktivitas (masuk dan keluar)
-        $stok = DB::table('tb_aktivitas')
-            ->selectRaw("
-                SUM(CASE WHEN status = 'masuk' THEN jumlah_barang ELSE 0 END) -
-                SUM(CASE WHEN status = 'keluar' THEN jumlah_barang ELSE 0 END) as stok
-            ")
-            ->where('id_barang', $request->id_barang)
-            ->value('stok');
+            // Hitung stok setelah penghapusan
+            if ($aktivitas->status === 'keluar') {
+                // Tambahkan kembali stok jika aktivitas keluar dihapus
+                $stok += $aktivitas->jumlah_barang;
+            } elseif ($aktivitas->status === 'masuk') {
+                // Kurangkan stok jika aktivitas masuk dihapus
+                $stok -= $aktivitas->jumlah_barang;
+            }
 
-        // Trigger event stok diperbarui
-        event(new StokUpdated($request->id_barang, $stok));
+             // Tentukan batas stok minimum
+             $threshold = 10;
+
+             // Kirim event untuk broadcasting dan notifikasi stok rendah jika perlu
+             if ($stok < $threshold) {
+                 event(new StokUpdated($request->id_barang, $stok));  // Mengirim event broadcast
+             }
+
+
+            // Pastikan stok tidak negatif setelah penghapusan
+            if ($stok < 0) {
+                return response()->json(['message' => 'Stok barang tidak valid setelah aktivitas ini dihapus'], 400);
+            }
+
+            // Hapus aktivitas
+            $aktivitas->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Aktivitas berhasil dihapus',
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Terjadi kesalahan saat menghapus aktivitas', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+
+    public function indexPemindahan()
+    {
+        // Ambil semua data pemindahan dengan relasi barang dan rak
+        $pemindahan = PemindahanModel::with(['barang', 'rak'])->get();
 
         return response()->json([
-            'message' => 'Barang berhasil dipindahkan',
+            'message' => 'Daftar pemindahan berhasil diambil',
             'data' => $pemindahan,
-        ], 201);
+        ], 200);
+    }
+
+    public function storePemindahan(Request $request)
+    {
+          $request->validate([
+            'id_barang' => 'required|exists:tb_barang,id',
+            'id_rak_asal' => 'required|exists:tb_rak,id',
+            'id_rak_tujuan' => 'required|exists:tb_rak,id|different:id_rak_asal',
+            'jumlah_pindah' => 'required|integer|min:1',
+            'tanggal_pindah' => 'required|date',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $pemindahan = PemindahanModel::create($request->all());
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Data pemindahan berhasil disimpan',
+                'data' => $pemindahan,
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Terjadi kesalahan saat menyimpan data', 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function updatePemindahan(Request $request, $id)
@@ -284,75 +343,47 @@ public function destroyAktivitas($id)
         $request->validate([
             'id_barang' => 'required|exists:tb_barang,id',
             'id_rak_asal' => 'required|exists:tb_rak,id',
-            'id_rak_tujuan' => 'required|exists:tb_rak,id',
+            'id_rak_tujuan' => 'required|exists:tb_rak,id|different:id_rak_asal',
             'jumlah_pindah' => 'required|integer|min:1',
+            'tanggal_pindah' => 'required|date',
         ]);
 
-        $pemindahan = PemindahanModel::findOrFail($id);
-        $barang = BarangModel::findOrFail($pemindahan->id_barang);
+        DB::beginTransaction();
+        try {
+            // Ambil data pemindahan yang akan diupdate
+            $pemindahan = PemindahanModel::findOrFail($id);
 
-        // Reset stok barang berdasarkan pemindahan lama
-        $barang->stok += $pemindahan->jumlah_pindah; // Tambah stok ke rak asal
+            // Update data pemindahan
+            $pemindahan->update($request->all());
 
-        // Update stok barang berdasarkan pemindahan baru
-        if ($barang->stok < $request->jumlah_pindah) {
-            return response()->json(['message' => 'Stok tidak mencukupi untuk dipindahkan'], 400);
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Data pemindahan berhasil diperbarui',
+                'data' => $pemindahan,
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Terjadi kesalahan saat memperbarui data', 'error' => $e->getMessage()], 500);
         }
-        $barang->stok -= $request->jumlah_pindah; // Kurangi stok dari rak tujuan
-        $barang->save();
-
-        // Update pemindahan
-        $pemindahan->update([
-            'id_barang' => $request->id_barang,
-            'id_rak_asal' => $request->id_rak_asal,
-            'id_rak_tujuan' => $request->id_rak_tujuan,
-            'jumlah_pindah' => $request->jumlah_pindah,
-            'tanggal_update' => now(),
-        ]);
-
-        // Hitung stok berdasarkan aktivitas (masuk dan keluar)
-        $stok = DB::table('tb_aktivitas')
-            ->selectRaw("
-                SUM(CASE WHEN status = 'masuk' THEN jumlah_barang ELSE 0 END) -
-                SUM(CASE WHEN status = 'keluar' THEN jumlah_barang ELSE 0 END) as stok
-            ")
-            ->where('id_barang', $request->id_barang)
-            ->value('stok');
-
-        // Trigger event stok diperbarui
-        event(new StokUpdated($request->id_barang, $stok));
-
-        return response()->json([
-            'message' => 'Pemindahan berhasil diperbarui',
-            'data' => $pemindahan,
-        ]);
     }
 
     public function destroyPemindahan($id)
     {
-        $pemindahan = PemindahanModel::findOrFail($id);
-        $barang = BarangModel::findOrFail($pemindahan->id_barang);
+        DB::beginTransaction();
+        try {
+            // Hapus data pemindahan
+            $pemindahan = PemindahanModel::findOrFail($id);
+            $pemindahan->delete();
 
-        // Reset stok barang berdasarkan pemindahan yang dihapus
-        $barang->stok += $pemindahan->jumlah_pindah; // Tambahkan stok kembali ke rak asal
-        $barang->save();
+            DB::commit();
 
-        $pemindahan->delete();
-
-        // Hitung stok berdasarkan aktivitas (masuk dan keluar)
-        $stok = DB::table('tb_aktivitas')
-            ->selectRaw("
-                SUM(CASE WHEN status = 'masuk' THEN jumlah_barang ELSE 0 END) -
-                SUM(CASE WHEN status = 'keluar' THEN jumlah_barang ELSE 0 END) as stok
-            ")
-            ->where('id_barang', $barang->id)
-            ->value('stok');
-
-        // Trigger event stok diperbarui
-        event(new StokUpdated($barang->id, $stok));
-
-        return response()->json([
-            'message' => 'Pemindahan berhasil dihapus',
-        ]);
+            return response()->json([
+                'message' => 'Data pemindahan berhasil dihapus',
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Terjadi kesalahan saat menghapus data', 'error' => $e->getMessage()], 500);
+        }
     }
 }

@@ -12,27 +12,6 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
-    {
-        $request->validate([
-            'username' => 'required|string|max:255|unique:users',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:5|confirmed',
-            'role' => 'default:staff'
-        ]);
-
-        $user = User::create([
-            'username' => $request->username,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        return response()->json([
-            'message' => 'User registered successfully',
-            'user' => $user
-        ], 201);
-    }
-
     public function login(Request $request)
     {
         $request->validate([
@@ -66,7 +45,6 @@ class AuthController extends Controller
         ], 200);
     }
 
-
     public function logout()
     {
         try {
@@ -95,4 +73,95 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    // CRUD User / Kelola User
+    public function index()
+    {
+        $users = User::all(); // Ambil semua data user
+        return response()->json([
+            'message' => 'Daftar user berhasil diambil',
+            'users' => $users,
+        ], 200);
+    }
+
+    // Membuat user baru
+    public function store(Request $request)
+    {
+        $request->validate([
+            'username' => 'required|string|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:5|confirmed',
+            'role' => 'default:staff'
+        ]);
+
+        $user = User::create([
+            'username' => $request->username,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
+        return response()->json([
+            'message' => 'User berhasil dibuat',
+            'user' => $user,
+        ], 201);
+    }
+
+    // Menampilkan detail user berdasarkan ID
+    public function show($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'User tidak ditemukan'], 404);
+        }
+
+        return response()->json([
+            'message' => 'Detail user berhasil diambil',
+            'user' => $user,
+        ], 200);
+    }
+
+    // Mengupdate user berdasarkan ID
+    public function update(Request $request, $id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'User tidak ditemukan'], 404);
+        }
+
+        $validatedData = $request->validate([
+            'username' => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|unique:users,email,' . $user->id,
+            'password' => 'sometimes|required|string|min:6',
+            'role' => 'sometimes|required|string|in:admin,user',
+        ]);
+
+        // Update data user
+        $user->username = $validatedData['username'] ?? $user->username;
+        $user->email = $validatedData['email'] ?? $user->email;
+        $user->password = isset($validatedData['password']) ? Hash::make($validatedData['password']) : $user->password;
+        $user->role = $validatedData['role'] ?? $user->role;
+        $user->save();
+
+        return response()->json([
+            'message' => 'User berhasil diupdate',
+            'user' => $user,
+        ], 200);
+    }
+
+    // Menghapus user berdasarkan ID
+    public function destroy($id)
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'User tidak ditemukan'], 404);
+        }
+
+        $user->delete();
+
+        return response()->json(['message' => 'User berhasil dihapus'], 200);
+    }
 }
+?>

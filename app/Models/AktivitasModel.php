@@ -19,18 +19,19 @@ class AktivitasModel extends Model
     const CREATED_AT = 'tanggal_dibuat';
     const UPDATED_AT = 'tanggal_update';
 
-    public function user() :BelongsTo
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'id_user'); // Pastikan key sesuai
     }
 
-    public function rak() :BelongsTo
+    public function rak(): BelongsTo
     {
-        return $this->belongsTo(RakModel::class);
+        return $this->belongsTo(RakModel::class, 'id_rak', 'id'); // Pastikan key sesuai
     }
 
-    public function barang() :BelongsTo
+    public function barang(): BelongsTo
     {
-        return $this->belongsTo(BarangModel::class);
+        return $this->belongsTo(BarangModel::class, 'id_barang', 'id'); // Pastikan key sesuai
     }
 }
+?>

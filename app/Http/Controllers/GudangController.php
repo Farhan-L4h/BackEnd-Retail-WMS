@@ -113,242 +113,277 @@ class GudangController extends Controller
         ], 200);
     }
 
-     // Supplier
+    // Supplier
 
-     public function indexSupplier()
-     {
-         $supplier = SupplierModel::all();
+    public function indexSupplier()
+    {
+        $supplier = SupplierModel::all();
 
-         return response()->json([
-             'success' => true,
-             'message' => 'List semua Supplier',
-             'data' => $supplier
-         ], 200);
-     }
+        return response()->json([
+            'success' => true,
+            'message' => 'List semua Supplier',
+            'data' => $supplier
+        ], 200);
+    }
 
-     public function createSupplier()
-     {
-         //
-     }
+    public function createSupplier()
+    {
+        //
+    }
 
-     public function storeSupplier(Request $request)
-     {
-         $request->validate([
-             'nama_supplier' => 'required|string|max:100',
-             'kontak' => 'required|string',
-             'alamat' => 'required|string',
-         ]);
+    public function storeSupplier(Request $request)
+    {
+        $request->validate([
+            'nama_supplier' => 'required|string|max:100',
+            'kontak' => 'required|string',
+            'alamat' => 'required|string',
+        ]);
 
-         $supplier = SupplierModel::create([
-             'nama_supplier' => $request->nama_supplier,
-             'kontak' => $request->kontak,
-             'alamat' => $request->alamat,
-         ]);
+        $supplier = SupplierModel::create([
+            'nama_supplier' => $request->nama_supplier,
+            'kontak' => $request->kontak,
+            'alamat' => $request->alamat,
+        ]);
 
-         return response()->json([
-             'success' => true,
-             'message' => 'Supplier berhasil dibuat',
-             'data' => $supplier
-         ], 201);
-     }
+        return response()->json([
+            'success' => true,
+            'message' => 'Supplier berhasil dibuat',
+            'data' => $supplier
+        ], 201);
+    }
 
-     public function showSupplier($id)
-     {
+    public function showSupplier($id)
+    {
 
-         $supplier = SupplierModel::find($id);
+        $supplier = SupplierModel::find($id);
 
-         if (!$supplier) {
-             return response()->json([
-                 'success' => false,
-                 'message' => 'Supplier tidak ditemukan',
-             ], 404);
-         }
+        if (!$supplier) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Supplier tidak ditemukan',
+            ], 404);
+        }
 
-         return response()->json([
-             'success' => true,
-             'message' => 'Detail Supplier',
-             'data' => $supplier
-         ], 200);
-     }
+        return response()->json([
+            'success' => true,
+            'message' => 'Detail Supplier',
+            'data' => $supplier
+        ], 200);
+    }
 
-     public function editSupplier($id)
-     {
-         //
-     }
+    public function editSupplier($id)
+    {
+        //
+    }
 
-     public function updateSupplier(Request $request, $id)
-     {
+    public function updateSupplier(Request $request, $id)
+    {
         $supplier = SupplierModel::findOrFail($id);
 
-         if (!$supplier) {
-             return response()->json([
-                 'success' => false,
-                 'message' => 'Supplier tidak ditemukan',
-             ], 404);
-         }
+        if (!$supplier) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Supplier tidak ditemukan',
+            ], 404);
+        }
 
-         $request->validate([
-             'nama_supplier' => 'required|string|max:100',
-             'kontak' => 'required|string',
-             'alamat' => 'required|string',
-         ]);
+        $request->validate([
+            'nama_supplier' => 'required|string|max:100',
+            'kontak' => 'required|string',
+            'alamat' => 'required|string',
+        ]);
 
-         $supplier->update($request->all());
+        $supplier->update($request->all());
 
-         return response()->json([
-             'success' => true,
-             'message' => 'Supplier berhasil diupdate',
-             'data' => $supplier
-         ], 200);
-     }
+        return response()->json([
+            'success' => true,
+            'message' => 'Supplier berhasil diupdate',
+            'data' => $supplier
+        ], 200);
+    }
 
-     public function destroySupplier($id)
-     {
-         $supplier = SupplierModel::find($id);
-
-         if (!$supplier) {
-             return response()->json([
-                 'success' => false,
-                 'message' => 'Supplier tidak ditemukan',
-             ], 404);
-         }
-
-         $supplier->delete();
-
-         return response()->json([
-             'success' => true,
-             'message' => 'Supplier berhasil dihapus',
-         ], 200);
-     }
-
-      // Rak
-
-      public function indexRak()
-      {
-          $rak = RakModel::all();
-
-          return response()->json([
-              'success' => true,
-              'message' => 'List semua rak',
-              'data' => $rak
-          ], 200);
-      }
-
-      public function createRak()
-      {
-          //
-      }
-
-      public function storeRak(Request $request)
-      {
-          $request->validate([
-              'kode_rak' => 'required|string|max:20',
-              'nama_rak' => 'required|string|max:100',
-              'lokasi_rak' => 'required|string',
-          ]);
-
-          $rak = RakModel::create([
-              'kode_rak' => $request->kode_rak,
-              'nama_rak' => $request->nama_rak,
-              'lokasi_rak' => $request->lokasi_rak,
-          ]);
-
-          return response()->json([
-              'success' => true,
-              'message' => 'Rak berhasil dibuat',
-              'data' => $rak
-          ], 201);
-      }
-
-      public function showRak($id)
-      {
-
-          $rak = RakModel::find($id);
-
-          if (!$rak) {
-              return response()->json([
-                  'success' => false,
-                  'message' => 'Rak tidak ditemukan',
-              ], 404);
-          }
-
-          return response()->json([
-              'success' => true,
-              'message' => 'Detail Rak',
-              'data' => $rak
-          ], 200);
-      }
-
-      public function editRak($id)
-      {
-          //
-      }
-
-      public function updateRak(Request $request, $id)
-      {
-          $rak = RakModel::find($id);
-
-          if (!$rak) {
-              return response()->json([
-                  'success' => false,
-                  'message' => 'Rak tidak ditemukan',
-              ], 404);
-          }
-
-          $request->validate([
-              'kode_rak' => 'required|string|max:20',
-              'nama_rak' => 'required|string|max:100',
-              'lokasi_rak' => 'required|string',
-          ]);
-
-          $rak->update([
-              'kode_rak' => $request->kode_rak,
-              'nama_rak' => $request->nama_rak,
-              'lokasi_rak' => $request->lokasi_rak,
-          ]);
-
-          return response()->json([
-              'success' => true,
-              'message' => 'Rak berhasil diupdate',
-              'data' => $rak
-          ], 200);
-      }
-
-      public function destroyRak($id)
-      {
-          $rak = RakModel::find($id);
-
-          if (!$rak) {
-              return response()->json([
-                  'success' => false,
-                  'message' => 'Rak tidak ditemukan',
-              ], 404);
-          }
-
-          $rak->delete();
-
-          return response()->json([
-              'success' => true,
-              'message' => 'Rak berhasil dihapus',
-          ], 200);
-      }
-
-      // Barang
-
-      public function index()
+    public function destroySupplier($id)
     {
-        $barang = BarangModel::with(['kategori','supplier'])->get();
+        $supplier = SupplierModel::find($id);
+
+        if (!$supplier) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Supplier tidak ditemukan',
+            ], 404);
+        }
+
+        $supplier->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Supplier berhasil dihapus',
+        ], 200);
+    }
+
+    // Rak
+
+    public function indexRak()
+    {
+        $rak = RakModel::all();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'List semua rak',
+            'data' => $rak
+        ], 200);
+    }
+
+    public function createRak()
+    {
+        //
+    }
+
+    public function storeRak(Request $request)
+    {
+        $request->validate([
+            'kode_rak' => 'required|string|max:20',
+            'nama_rak' => 'required|string|max:100',
+            'lokasi_rak' => 'required|string',
+        ]);
+
+        $rak = RakModel::create([
+            'kode_rak' => $request->kode_rak,
+            'nama_rak' => $request->nama_rak,
+            'lokasi_rak' => $request->lokasi_rak,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rak berhasil dibuat',
+            'data' => $rak
+        ], 201);
+    }
+
+    public function showRak($id)
+    {
+
+        $rak = RakModel::find($id);
+
+        if (!$rak) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Rak tidak ditemukan',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Detail Rak',
+            'data' => $rak
+        ], 200);
+    }
+
+    public function editRak($id)
+    {
+        //
+    }
+
+    public function updateRak(Request $request, $id)
+    {
+        $rak = RakModel::find($id);
+
+        if (!$rak) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Rak tidak ditemukan',
+            ], 404);
+        }
+
+        $request->validate([
+            'kode_rak' => 'required|string|max:20',
+            'nama_rak' => 'required|string|max:100',
+            'lokasi_rak' => 'required|string',
+        ]);
+
+        $rak->update([
+            'kode_rak' => $request->kode_rak,
+            'nama_rak' => $request->nama_rak,
+            'lokasi_rak' => $request->lokasi_rak,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rak berhasil diupdate',
+            'data' => $rak
+        ], 200);
+    }
+
+    public function destroyRak($id)
+    {
+        $rak = RakModel::find($id);
+
+        if (!$rak) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Rak tidak ditemukan',
+            ], 404);
+        }
+
+        $rak->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rak berhasil dihapus',
+        ], 200);
+    }
+
+    // Barang
+
+    public function index()
+    {
+        // Mengambil stok, expired, dan rak
+        $stok = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_keluar")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                     COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+            ->selectRaw("MAX(tb_aktivitas.exp_barang) AS exp_barang") // Ambil tanggal expired terakhir
+            ->selectRaw("MAX(tb_aktivitas.id_rak) AS id_rak") // Ambil id rak terakhir yang terkait dengan barang
+            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+            ->leftJoin('tb_rak', 'tb_aktivitas.id_rak', '=', 'tb_rak.id') // Join dengan tabel rak untuk mendapatkan nama rak
+            ->groupBy('tb_barang.id')
+            ->get();
+
+
+        $barang = BarangModel::with(['kategori', 'supplier'])->get();
+
+        // Gabungkan stok, expired, dan lokasi rak dengan data barang berdasarkan id_barang
+        $barang = $barang->map(function ($barangItem) use ($stok) {
+            // Cari stok, expired, dan id_rak yang sesuai dengan id_barang
+            $stokItem = $stok->firstWhere('id', $barangItem->id);
+            $barangItem->stok = $stokItem ? $stokItem->stok : 0; // Set stok, jika tidak ada set 0
+            $barangItem->exp_barang = $stokItem ? $stokItem->exp_barang : null; // Set expired, jika tidak ada set null
+            $barangItem->id_rak = $stokItem ? $stokItem->id_rak : null; // Set id rak, jika tidak ada set null
+
+            // Ambil informasi rak berdasarkan id_rak jika tersedia
+            if ($barangItem->id_rak) {
+                $rak = RakModel::find($barangItem->id_rak);
+                $barangItem->rak = $rak ? $rak->nama_rak : null; // Set nama rak
+            }
+
+            return $barangItem;
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'List semua barang',
-            'data' => $barang
+            'data' => $barang,
+            'stok' => $stok
         ], 200);
     }
 
+
+
     public function show($id)
     {
-        $barang = BarangModel::with(['kategori','supplier'])->find($id);
+
+        $barang = BarangModel::with(['kategori', 'supplier'])->find($id);
 
         if (!$barang) {
             return response()->json([
@@ -399,7 +434,7 @@ class GudangController extends Controller
 
     public function update(Request $request, $id)
     {
-        $barang = BarangModel::with(['kategori','supplier'])->find($id);
+        $barang = BarangModel::with(['kategori', 'supplier'])->find($id);
 
         if (!$barang) {
             return response()->json([

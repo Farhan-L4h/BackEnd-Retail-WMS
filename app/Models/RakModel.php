@@ -22,13 +22,12 @@ class RakModel extends Model
     public function aktivitas() :HasMany
     {
         return $this->hasMany(    AktivitasModel::class);
-
     }
 
      public function pemindahan() :HasMany
     {
         return $this->hasMany(    PemindahanModel::class);
-
     }
 
 }
+?>

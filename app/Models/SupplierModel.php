@@ -22,7 +22,7 @@ class SupplierModel extends Model
     public function barang() :HasMany
     {
         return $this->hasMany(    BarangModel::class);
-
     }
 
 }
+?>

@@ -21,7 +21,8 @@ class BarangModel extends Model
     const CREATED_AT = 'tanggal_dibuat';
     const UPDATED_AT = 'tanggal_update';
 
-    public function kategori() :BelongsTo {
+    public function kategori() :BelongsTo
+    {
         return $this->belongsTo(KategoriModel::class, 'id_kategori', 'id');
     }
 
@@ -33,13 +34,11 @@ class BarangModel extends Model
     public function aktivitas() :HasMany
     {
         return $this->hasMany(    AktivitasModel::class);
-
     }
 
     public function pemindahan() :HasMany
     {
         return $this->hasMany(    PemindahanModel::class);
-
     }
 
     public function image(): Attribute {
@@ -49,3 +48,4 @@ class BarangModel extends Model
     }
 
 }
+?>

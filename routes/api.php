@@ -54,11 +54,14 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     Route::post('/barang', [GudangController::class, 'store'])->name('barang.store');
     Route::put('/barang/{id}/update', [GudangController::class, 'update'])->name('barang.update');
     Route::delete('/barang/{id}/destroy', [GudangController::class, 'destroy'])->name('barang.destroy');
+    Route::get('/low-stock-items', [GudangController::class, 'getLowStockItems'])->name('stokRendah');
+    Route::get('/dashboard/check-expires', [GudangController::class, 'checkExpires'])->name('exp');
 
     // Aktivitas Barang
     Route::get('/aktivitas', [AktivitasController::class, 'indexAktivitas'])->name('aktivitas.index');
     Route::post('/aktivitas', [AktivitasController::class, 'storeAktivitas'])-> name('aktivitas.store'); // Catat aktivitas
-    Route::get('/aktivitas/{id}/show', [AktivitasController::class, 'show'])->name('aktivitas.show'); // Show aktivitas
+    Route::get('/aktivitas/{id}/show', [AktivitasController::class, 'show'])->name('aktivitas.show'); // Show Stok Barang
+    Route::get('/aktivitas/{id}', [AktivitasController::class, 'showAktivitas']); //Show Aktivitas
     Route::put('/aktivitas/{id}/update', [AktivitasController::class, 'updateAktivitas'])->name('aktivitas.update');
     Route::delete('/aktivitas/{id}/destroy', [AktivitasController::class, 'destroyAktivitas'])->name('aktivitas.destroy');
 
@@ -67,6 +70,13 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     Route::post('/pemindahan', [AktivitasController::class, 'storePemindahan'])->name('pemindahan.store'); // Catat pemindahan
     Route::put('/pemindahan/{id}/update', [AktivitasController::class, 'updatePemindahan'])->name('pemindahan.update');
     Route::delete('/pemindahan/{id}/destroy', [AktivitasController::class, 'destroyPemindahan'])->name('pemindahan.destroy');
+
+    //User
+    Route::get('/user', [AuthController::class, 'index'])->name('user.indes');
+    Route::post('/user', [AuthController::class, 'store'])->name('user.store');
+    Route::get('/user/{id}/show', [AuthController::class, 'show'])->name('user.show');
+    Route::put('/user/{id}/update', [AuthController::class, 'update'])->name('user.update');
+    Route::delete('/user/{id}/destroy', [AuthController::class, 'destroy'])->name('user.destroy');
 
     // Laporan
     Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan');

@@ -82,7 +82,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan');
 
     //Tabel Stok Rendah
-    Route::get('/low-stock-items', [AktivitasController::class, 'getLowStockItems']);
+    Route::get('/stok-barang-rendah', [AktivitasController::class, 'getLowStockItems']);
 
     //Tabel Barang Expired Terdekat
-    Route::get('/nearest-expiry-items', [AktivitasController::class, 'getItemsWithNearestExpiry']);
+    Route::get('/expired-barang-terdekat', [AktivitasController::class, 'checkExpires']);

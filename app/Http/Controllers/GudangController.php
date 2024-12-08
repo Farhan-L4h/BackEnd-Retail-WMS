@@ -2,14 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\KategoriModel;
 use App\Models\SupplierModel;
 use App\Models\RakModel;
 use App\Models\BarangModel;
 use Illuminate\Support\Facades\Validator;
-use App\Events\StokUpdated;
 
 class GudangController extends Controller
 {
@@ -337,22 +335,21 @@ class GudangController extends Controller
 
     // Barang
 
-
     public function index()
     {
         // Mengambil stok, expired, dan rak
-        $stok = BarangModel::with([
-            'aktivitas' => function ($query) {
-                $query->selectRaw("
-                    id_barang,
-                    COALESCE(SUM(CASE WHEN status = 'masuk' THEN jumlah_barang ELSE 0 END), 0) AS total_masuk,
-                    COALESCE(SUM(CASE WHEN status = 'keluar' THEN jumlah_barang ELSE 0 END), 0) AS total_keluar,
-                    MAX(exp_barang) AS exp_barang,
-                    MAX(id_rak) AS id_rak
-                ")
-                ->groupBy('id_barang');
-            }
-        ])->get();
+        $stok = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_keluar")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                     COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+            ->selectRaw("MAX(tb_aktivitas.exp_barang) AS exp_barang") // Ambil tanggal expired terakhir
+            ->selectRaw("MAX(tb_aktivitas.id_rak) AS id_rak") // Ambil id rak terakhir yang terkait dengan barang
+            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+            ->leftJoin('tb_rak', 'tb_aktivitas.id_rak', '=', 'tb_rak.id') // Join dengan tabel rak untuk mendapatkan nama rak
+            ->groupBy('tb_barang.id')
+            ->get();
+
 
         $barang = BarangModel::with(['kategori', 'supplier'])->get();
 
@@ -380,6 +377,8 @@ class GudangController extends Controller
             'stok' => $stok
         ], 200);
     }
+
+
 
     public function show($id)
     {

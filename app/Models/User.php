@@ -60,3 +60,4 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(AktivitasModel::class, 'kategori_id', 'id');
     }
 }
+?>

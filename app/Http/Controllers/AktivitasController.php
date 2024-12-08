@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use App\Models\AktivitasModel;
 use App\Models\PemindahanModel;
 use App\Models\BarangModel;
-use Carbon\Carbon;
 use App\Events\StokUpdated;
 use Illuminate\Support\Facades\DB;
 
@@ -14,18 +13,10 @@ class AktivitasController extends Controller
 {
     public function indexAktivitas(Request $request)
     {
-        $stok = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
-    ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
-    ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_keluar")
-    ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
-                  COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
-    ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-    ->groupBy('tb_barang.id')->get();
         // Ambil daftar aktivitas dengan relasi
         $aktivitas = AktivitasModel::with(['barang', 'user', 'rak'])->get();
         return response()->json([
             'message' => 'Daftar aktivitas berhasil diambil',
-            'stok' => $stok,
             'data' => $aktivitas,
         ], 200);
     }
@@ -49,12 +40,15 @@ class AktivitasController extends Controller
         DB::beginTransaction();
         try {
             // Hitung stok barang berdasarkan aktivitas sebelumnya
-            $stok = BarangModel::selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
-                                            COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
-                ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-                ->where('tb_barang.id', $request->id_barang)
-                ->groupBy('tb_barang.id')
-                ->value('stok');
+            $stok = BarangModel::selectRaw("
+                COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok
+            ")
+            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+            ->where('tb_barang.id', $request->id_barang)
+            ->groupBy('tb_barang.id')
+            ->value('stok');
+
             // Tentukan batas stok minimum
             $threshold = 10;
 
@@ -93,25 +87,9 @@ class AktivitasController extends Controller
     }
 
 
-    // Fungsi untuk menampilkan detail aktivitas berdasarkan id_barang
+    // Fungsi untuk menampilkan detail barang berdasarkan id_barang
     public function show($id)
     {
-        // Ambil barang berdasarkan ID
-        $barang = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
-            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
-            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_keluar")
-            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
-                        COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
-            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-            ->where('tb_barang.id', $id)
-            ->groupBy('tb_barang.id')
-            ->first();
-
-        // Jika barang tidak ditemukan
-        if (!$barang) {
-            return response()->json(['message' => 'Barang tidak ditemukan'], 404);
-        }
-
         // Ambil aktivitas terkait barang
         $aktivitas = AktivitasModel::where('id_barang', $id)
             ->with(['barang', 'user', 'rak'])
@@ -120,46 +98,9 @@ class AktivitasController extends Controller
 
         return response()->json([
             'message' => 'Detail aktivitas berhasil diambil',
-            'barang' => $barang,
             'aktivitas' => $aktivitas,
         ], 200);
     }
-
-    //Untuk Menampilkan Stok Rendah
-    public function getLowStockItems()
-    {
-        $lowStockItems = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
-            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
-                        COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
-            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-            ->groupBy('tb_barang.id', 'tb_barang.nama_barang')
-            ->havingRaw('stok <= ?', [10]) // Filter stok rendah
-            ->orderBy('stok', 'asc') // Urutkan stok terkecil
-            ->get();
-
-        return response()->json([
-            'message' => 'Barang dengan stok rendah berhasil diambil',
-            'data' => $lowStockItems,
-        ], 200);
-    }
-
-
-    //Untuk menampilkan Barang dengan tanggal kadaluarsa terdekat
-    public function getItemsWithNearestExpiry()
-    {
-        $itemsWithNearestExpiry = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang', 'tb_aktivitas.exp_barang')
-            ->join('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-            ->whereNotNull('tb_aktivitas.exp_barang') // Hanya barang dengan tanggal kadaluarsa
-            ->where('tb_aktivitas.exp_barang', '>=', Carbon::now()) // Tanggal kadaluarsa yang belum lewat
-            ->orderBy('tb_aktivitas.exp_barang', 'asc') // Urutkan berdasarkan tanggal kadaluarsa
-            ->get();
-
-        return response()->json([
-            'message' => 'Barang dengan tanggal kadaluarsa terdekat berhasil diambil',
-            'data' => $itemsWithNearestExpiry,
-        ], 200);
-    }
-
 
     public function updateAktivitas(Request $request, $id)
     {
@@ -180,10 +121,12 @@ class AktivitasController extends Controller
             $aktivitas = AktivitasModel::findOrFail($id);
 
             // Hitung stok barang sebelum update
-            $stokSebelumUpdate = BarangModel::selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
-                                                        COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+            $stokSebelumUpdate = BarangModel::selectRaw("
+                    COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                    COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok
+                ")
                 ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-                ->where('tb_barang.id', $aktivitas->id_barang)
+                ->where('tb_barang.id', $request->id_barang)
                 ->groupBy('tb_barang.id')
                 ->value('stok');
 
@@ -218,14 +161,14 @@ class AktivitasController extends Controller
             // Update data aktivitas
             $aktivitas->update([
                 'id_barang' => $request->id_barang,
-            'id_user' => $request->id_user,
-            'id_rak' => $request->id_rak,
-            'exp_barang' => $request->exp_barang,
-            'jumlah_barang' => $request->jumlah_barang,
-            'harga_barang' => $request->harga_barang,
-            'total_harga' => $request->jumlah_barang * $request->harga_barang,
-            'status' => $request->status,
-            'alasan' => $request->alasan,
+                'id_user' => $request->id_user,
+                'id_rak' => $request->id_rak,
+                'exp_barang' => $request->exp_barang,
+                'jumlah_barang' => $request->jumlah_barang,
+                'harga_barang' => $request->harga_barang,
+                'total_harga' => $request->jumlah_barang * $request->harga_barang,
+                'status' => $request->status,
+                'alasan' => $request->alasan,
             ]);
 
             // Hitung stok terbaru
@@ -387,3 +330,4 @@ class AktivitasController extends Controller
         }
     }
 }
+?>

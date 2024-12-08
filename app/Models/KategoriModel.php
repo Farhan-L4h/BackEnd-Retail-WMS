@@ -22,7 +22,7 @@ class KategoriModel extends Model
     public function barang() :HasMany
     {
         return $this->hasMany(    AktivitasModel::class);
-
     }
 
 }
+?>

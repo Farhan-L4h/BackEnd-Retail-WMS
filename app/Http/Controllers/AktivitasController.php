@@ -25,7 +25,7 @@ class AktivitasController extends Controller
     {
         $request->validate([
             'id_barang' => 'required|exists:tb_barang,id',
-            'id_user' => 'required|exists:users,id',
+            'username' => 'required|exists:users,username',
             'id_rak' => 'required|exists:tb_rak,id',
             'exp_barang' => 'nullable|date',
             'jumlah_barang' => 'required|integer|min:1',
@@ -64,7 +64,7 @@ class AktivitasController extends Controller
             // Simpan data aktivitas
             $aktivitas = AktivitasModel::create([
                 'id_barang' => $request->id_barang,
-                'id_user' => $request->id_user,
+                'username' => $request->username,
                 'id_rak' => $request->id_rak,
                 'exp_barang' => $request->exp_barang,
                 'jumlah_barang' => $request->jumlah_barang,
@@ -106,7 +106,7 @@ class AktivitasController extends Controller
     {
         $request->validate([
             'id_barang' => 'required|exists:tb_barang,id',
-            'id_user' => 'required|exists:users,id',
+            'username' => 'required|exists:users,username',
             'id_rak' => 'required|exists:tb_rak,id',
             'exp_barang' => 'nullable|date',
             'jumlah_barang' => 'required|integer|min:1',
@@ -161,7 +161,7 @@ class AktivitasController extends Controller
             // Update data aktivitas
             $aktivitas->update([
                 'id_barang' => $request->id_barang,
-                'id_user' => $request->id_user,
+                'username' => $request->username,
                 'id_rak' => $request->id_rak,
                 'exp_barang' => $request->exp_barang,
                 'jumlah_barang' => $request->jumlah_barang,

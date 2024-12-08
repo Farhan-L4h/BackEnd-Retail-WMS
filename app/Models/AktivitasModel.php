@@ -13,7 +13,7 @@ class AktivitasModel extends Model
     protected $table = 'tb_aktivitas';
     protected $primaryKey = 'id';
 
-    protected $fillable = ['id_barang','id_user', 'id_rak', 'exp_barang', 'jumlah_barang', 'harga_barang','total_harga','status','alasan'];
+    protected $fillable = ['id_barang','username', 'id_rak', 'exp_barang', 'jumlah_barang', 'harga_barang','total_harga','status','alasan'];
 
     // Ganti default timestamps
     const CREATED_AT = 'tanggal_dibuat';
@@ -21,7 +21,7 @@ class AktivitasModel extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'id_user'); // Pastikan key sesuai
+        return $this->belongsTo(User::class, 'id_user', 'id'); // Pastikan key sesuai
     }
 
     public function rak(): BelongsTo

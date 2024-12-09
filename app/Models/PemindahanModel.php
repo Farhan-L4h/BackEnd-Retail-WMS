@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PemindahanModel extends Model
 {
@@ -24,9 +25,9 @@ class PemindahanModel extends Model
         return $this->belongsTo(RakModel::class, 'id_rak', 'id'); // Pastikan key sesuai
     }
 
-    public function barang(): BelongsTo
+    public function aktivitas(): BelongsTo
     {
-        return $this->belongsTo(BarangModel::class, 'id_barang', 'id'); // Pastikan key sesuai
+        return $this->belongsTo(AktivitasModel::class, 'id_aktivitas', 'id'); // Pastikan key sesuai
     }
 
 }

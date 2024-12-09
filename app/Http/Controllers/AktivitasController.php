@@ -25,7 +25,7 @@ class AktivitasController extends Controller
     {
         $request->validate([
             'id_barang' => 'required|exists:tb_barang,id',
-            'username' => 'required|exists:users,username',
+            'id_user' => 'required|exists:users,id',
             'id_rak' => 'required|exists:tb_rak,id',
             'exp_barang' => 'nullable|date',
             'jumlah_barang' => 'required|integer|min:1',
@@ -64,7 +64,7 @@ class AktivitasController extends Controller
             // Simpan data aktivitas
             $aktivitas = AktivitasModel::create([
                 'id_barang' => $request->id_barang,
-                'username' => $request->username,
+                'id_user' => $request->id_user,
                 'id_rak' => $request->id_rak,
                 'exp_barang' => $request->exp_barang,
                 'jumlah_barang' => $request->jumlah_barang,
@@ -91,10 +91,7 @@ class AktivitasController extends Controller
     public function show($id)
     {
         // Ambil aktivitas terkait barang
-        $aktivitas = AktivitasModel::where('id_barang', $id)
-            ->with(['barang', 'user', 'rak'])
-            ->orderBy('tanggal_dibuat', 'desc')
-            ->get();
+        $aktivitas = AktivitasModel::with(['barang', 'user','rak'])->find($id);
 
         return response()->json([
             'message' => 'Detail aktivitas berhasil diambil',
@@ -106,7 +103,7 @@ class AktivitasController extends Controller
     {
         $request->validate([
             'id_barang' => 'required|exists:tb_barang,id',
-            'username' => 'required|exists:users,username',
+            'id_user' => 'required|exists:users,id',
             'id_rak' => 'required|exists:tb_rak,id',
             'exp_barang' => 'nullable|date',
             'jumlah_barang' => 'required|integer|min:1',
@@ -161,7 +158,7 @@ class AktivitasController extends Controller
             // Update data aktivitas
             $aktivitas->update([
                 'id_barang' => $request->id_barang,
-                'username' => $request->username,
+                'id_user' => $request->id_user,
                 'id_rak' => $request->id_rak,
                 'exp_barang' => $request->exp_barang,
                 'jumlah_barang' => $request->jumlah_barang,
@@ -204,7 +201,11 @@ class AktivitasController extends Controller
                                             COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
                 ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
                 ->where('tb_barang.id', $aktivitas->id_barang)
-                ->groupBy('tb_barang.id')->get();
+                ->groupBy('tb_barang.id')
+                ->value('stok'); // Ambil nilai langsung dari query
+
+            // Pastikan stok memiliki nilai default jika null
+            $stok = $stok ?? 0;
 
             // Hitung stok setelah penghapusan
             if ($aktivitas->status === 'keluar') {
@@ -215,14 +216,13 @@ class AktivitasController extends Controller
                 $stok -= $aktivitas->jumlah_barang;
             }
 
-             // Tentukan batas stok minimum
-             $threshold = 10;
+            // Tentukan batas stok minimum
+            $threshold = 10;
 
-             // Kirim event untuk broadcasting dan notifikasi stok rendah jika perlu
-             if ($stok < $threshold) {
-                 event(new StokUpdated($request->id_barang, $stok));  // Mengirim event broadcast
-             }
-
+            // Kirim event untuk broadcasting dan notifikasi stok rendah jika perlu
+            if ($stok < $threshold) {
+                event(new StokUpdated($aktivitas->id_barang, $stok)); // Mengirim event broadcast
+            }
 
             // Pastikan stok tidak negatif setelah penghapusan
             if ($stok < 0) {
@@ -247,7 +247,7 @@ class AktivitasController extends Controller
     public function indexPemindahan()
     {
         // Ambil semua data pemindahan dengan relasi barang dan rak
-        $pemindahan = PemindahanModel::with(['barang', 'rak'])->get();
+        $pemindahan = PemindahanModel::with(['aktivitas', 'rak'])->get();
 
         return response()->json([
             'message' => 'Daftar pemindahan berhasil diambil',
@@ -257,17 +257,29 @@ class AktivitasController extends Controller
 
     public function storePemindahan(Request $request)
     {
-          $request->validate([
-            'id_barang' => 'required|exists:tb_barang,id',
+        $request->validate([
+            'id_aktivitas' => 'required|exists:tb_aktivitas,id',
             'id_rak_asal' => 'required|exists:tb_rak,id',
             'id_rak_tujuan' => 'required|exists:tb_rak,id|different:id_rak_asal',
             'jumlah_pindah' => 'required|integer|min:1',
-            'tanggal_pindah' => 'required|date',
         ]);
 
         DB::beginTransaction();
         try {
-            $pemindahan = PemindahanModel::create($request->all());
+            // Ambil data dari request
+            $data = $request->only(['id_aktivitas', 'id_rak_asal', 'id_rak_tujuan', 'jumlah_pindah']);
+
+            // Tambahkan timestamp secara manual
+            $data['tanggal_dibuat'] = now();
+            $data['tanggal_update'] = now();
+
+            // Pastikan id_aktivitas tidak null
+            if (empty($data['id_aktivitas'])) {
+                throw new \Exception("Field 'id_aktivitas' tidak boleh kosong");
+            }
+
+            // Simpan data ke database
+            $pemindahan = PemindahanModel::create($data);
 
             DB::commit();
 
@@ -277,18 +289,22 @@ class AktivitasController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Terjadi kesalahan saat menyimpan data', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat menyimpan data',
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
+
 
     public function updatePemindahan(Request $request, $id)
     {
         $request->validate([
-            'id_barang' => 'required|exists:tb_barang,id',
+            'id_aktivitas' => 'required|exists:tb_aktivitas,id',
             'id_rak_asal' => 'required|exists:tb_rak,id',
             'id_rak_tujuan' => 'required|exists:tb_rak,id|different:id_rak_asal',
             'jumlah_pindah' => 'required|integer|min:1',
-            'tanggal_pindah' => 'required|date',
+
         ]);
 
         DB::beginTransaction();

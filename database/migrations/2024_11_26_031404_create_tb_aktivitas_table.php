@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('tb_aktivitas', function (Blueprint $table) {
             $table->id('id');
             $table->unsignedBigInteger('id_barang')->index();
-            $table->unsignedBigInteger('username')->index();
+            $table->unsignedBigInteger('id_user')->index();
             $table->unsignedBigInteger('id_rak')->index();
-            $table->date('exp_barang');
+            $table->date('exp_barang')->nullable();
             $table->integer('jumlah_barang');
             $table->integer('harga_barang');
             $table->integer('total_harga');
@@ -27,7 +27,7 @@ return new class extends Migration
 
              // relasi
              $table->foreign('id_barang')->references('id')->on('tb_barang');
-             $table->foreign('username')->references('username')->on('users');
+             $table->foreign('id_user')->references('id')->on('users');
              $table->foreign('id_rak')->references('id')->on('tb_rak');
         });
     }

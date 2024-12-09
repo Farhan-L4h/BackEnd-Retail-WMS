@@ -25,20 +25,23 @@ class AktivitasController extends Controller
     {
         $request->validate([
             'id_barang' => 'required|exists:tb_barang,id',
-            'id_user' => 'required|exists:users,id',
+            'username' => 'required',
             'id_rak' => 'required|exists:tb_rak,id',
             'exp_barang' => 'nullable|date',
             'jumlah_barang' => 'required|integer|min:1',
-            'harga_barang' => 'required|integer|min:0',
             'status' => 'required|in:masuk,keluar',
             'alasan' => 'nullable|in:diterima,diambil,return,dibuang',
         ]);
 
-        // Total harga = jumlah x harga per barang
-        $total_harga = $request->jumlah_barang * $request->harga_barang;
-
         DB::beginTransaction();
         try {
+            // Ambil harga barang dari tabel tb_barang
+            $barang = BarangModel::findOrFail($request->id_barang);
+            $harga_barang = $barang->harga;
+
+            // Total harga = jumlah x harga per barang
+            $total_harga = $request->jumlah_barang * $harga_barang;
+
             // Hitung stok barang berdasarkan aktivitas sebelumnya
             $stok = BarangModel::selectRaw("
                 COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
@@ -64,11 +67,11 @@ class AktivitasController extends Controller
             // Simpan data aktivitas
             $aktivitas = AktivitasModel::create([
                 'id_barang' => $request->id_barang,
-                'id_user' => $request->id_user,
+                'username' => $request->username,
                 'id_rak' => $request->id_rak,
                 'exp_barang' => $request->exp_barang,
                 'jumlah_barang' => $request->jumlah_barang,
-                'harga_barang' => $request->harga_barang,
+                'harga_barang' => $harga_barang,
                 'total_harga' => $total_harga,
                 'status' => $request->status,
                 'alasan' => $request->alasan,
@@ -103,7 +106,7 @@ class AktivitasController extends Controller
     {
         $request->validate([
             'id_barang' => 'required|exists:tb_barang,id',
-            'id_user' => 'required|exists:users,id',
+            'username' => 'required',
             'id_rak' => 'required|exists:tb_rak,id',
             'exp_barang' => 'nullable|date',
             'jumlah_barang' => 'required|integer|min:1',
@@ -155,15 +158,19 @@ class AktivitasController extends Controller
                 $stokSetelahUpdate -= $request->jumlah_barang;
             }
 
+            // Ambil harga barang dari tabel tb_barang
+            $barang = BarangModel::findOrFail($request->id_barang);
+            $harga_barang = $barang->harga;
+
             // Update data aktivitas
             $aktivitas->update([
                 'id_barang' => $request->id_barang,
-                'id_user' => $request->id_user,
+                'username' => $request->username,
                 'id_rak' => $request->id_rak,
                 'exp_barang' => $request->exp_barang,
                 'jumlah_barang' => $request->jumlah_barang,
-                'harga_barang' => $request->harga_barang,
-                'total_harga' => $request->jumlah_barang * $request->harga_barang,
+                'harga_barang' => $harga_barang,
+                'total_harga' => $request->jumlah_barang * $harga_barang,
                 'status' => $request->status,
                 'alasan' => $request->alasan,
             ]);

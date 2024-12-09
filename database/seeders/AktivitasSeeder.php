@@ -17,7 +17,7 @@ class AktivitasSeeder extends Seeder
             [
                 'id' => 1,
                 'id_barang' => 3,
-                'id_user' => 2,
+                'username' => 'Admin 1',
                 'id_rak' => 1,
                 'exp_barang' => '2025-06-17',
                 'jumlah_barang' => 35,
@@ -29,7 +29,7 @@ class AktivitasSeeder extends Seeder
             [
                 'id' => 2,
                 'id_barang' => 5,
-                'id_user' => 2,
+                'username' => 'Staff 1',
                 'id_rak' => 1,
                 'exp_barang' => '2025-09-15',
                 'jumlah_barang' => 50,
@@ -41,7 +41,7 @@ class AktivitasSeeder extends Seeder
             [
                 'id' => 3,
                 'id_barang' => 5,
-                'id_user' => 2,
+                'username' => 'Staff 1',
                 'id_rak' => 1,
                 'exp_barang' => '2025-09-15',
                 'jumlah_barang' => 20,

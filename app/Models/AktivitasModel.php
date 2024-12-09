@@ -37,7 +37,7 @@ class AktivitasModel extends Model
 
     public function pemindahan(): HasMany
     {
-        return $this->hasMany(AModel::class);
+        return $this->hasMany(PemindahanModel::class);
     }
 }
 ?>

@@ -253,14 +253,25 @@ class AktivitasController extends Controller
 
     public function indexPemindahan()
     {
-        // Ambil semua data pemindahan dengan relasi barang dan rak
-        $pemindahan = PemindahanModel::with(['aktivitas', 'rak'])->get();
+        // Menggunakan join dengan alias untuk rak asal dan rak tujuan
+        $pemindahan = DB::table('tb_pemindahan')
+            ->join('tb_aktivitas', 'tb_pemindahan.id_aktivitas', '=', 'tb_aktivitas.id')
+            ->join('tb_rak as rak_asal', 'tb_pemindahan.id_rak_asal', '=', 'rak_asal.id')
+            ->join('tb_rak as rak_tujuan', 'tb_pemindahan.id_rak_tujuan', '=', 'rak_tujuan.id')
+            ->select(
+                'tb_pemindahan.*',
+                'tb_aktivitas.id_barang',
+                'rak_asal.nama_rak as nama_rak_asal',
+                'rak_tujuan.nama_rak as nama_rak_tujuan'
+            )
+            ->get();
 
         return response()->json([
             'message' => 'Daftar pemindahan berhasil diambil',
             'data' => $pemindahan,
         ], 200);
     }
+
 
     public function storePemindahan(Request $request)
     {
@@ -273,20 +284,36 @@ class AktivitasController extends Controller
 
         DB::beginTransaction();
         try {
-            // Ambil data dari request
-            $data = $request->only(['id_aktivitas', 'id_rak_asal', 'id_rak_tujuan', 'jumlah_pindah']);
+            // Validasi bahwa aktivitas dan rak asal sesuai
+            $aktivitas = DB::table('tb_aktivitas')
+                ->where('id', $request->id_aktivitas)
+                ->first();
 
-            // Tambahkan timestamp secara manual
-            $data['tanggal_dibuat'] = now();
-            $data['tanggal_update'] = now();
-
-            // Pastikan id_aktivitas tidak null
-            if (empty($data['id_aktivitas'])) {
-                throw new \Exception("Field 'id_aktivitas' tidak boleh kosong");
+            if (!$aktivitas) {
+                return response()->json(['message' => 'Aktivitas tidak valid'], 404);
             }
 
-            // Simpan data ke database
-            $pemindahan = PemindahanModel::create($data);
+            // Validasi bahwa rak asal ada
+            $rakAsal = DB::table('tb_rak')->where('id', $request->id_rak_asal)->first();
+            if (!$rakAsal) {
+                return response()->json(['message' => 'Rak asal tidak valid'], 404);
+            }
+
+            // Validasi bahwa rak tujuan ada
+            $rakTujuan = DB::table('tb_rak')->where('id', $request->id_rak_tujuan)->first();
+            if (!$rakTujuan) {
+                return response()->json(['message' => 'Rak tujuan tidak valid'], 404);
+            }
+
+            // Simpan data pemindahan
+            $pemindahan = PemindahanModel::create([
+                'id_aktivitas' => $request->id_aktivitas,
+                'id_rak_asal' => $request->id_rak_asal,
+                'id_rak_tujuan' => $request->id_rak_tujuan,
+                'jumlah_pindah' => $request->jumlah_pindah,
+                'tanggal_dibuat' => now(),
+                'tanggal_update' => now(),
+            ]);
 
             DB::commit();
 
@@ -303,36 +330,6 @@ class AktivitasController extends Controller
         }
     }
 
-
-    public function updatePemindahan(Request $request, $id)
-    {
-        $request->validate([
-            'id_aktivitas' => 'required|exists:tb_aktivitas,id',
-            'id_rak_asal' => 'required|exists:tb_rak,id',
-            'id_rak_tujuan' => 'required|exists:tb_rak,id|different:id_rak_asal',
-            'jumlah_pindah' => 'required|integer|min:1',
-
-        ]);
-
-        DB::beginTransaction();
-        try {
-            // Ambil data pemindahan yang akan diupdate
-            $pemindahan = PemindahanModel::findOrFail($id);
-
-            // Update data pemindahan
-            $pemindahan->update($request->all());
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Data pemindahan berhasil diperbarui',
-                'data' => $pemindahan,
-            ], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'Terjadi kesalahan saat memperbarui data', 'error' => $e->getMessage()], 500);
-        }
-    }
 
     public function destroyPemindahan($id)
     {

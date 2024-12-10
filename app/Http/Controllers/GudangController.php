@@ -2,14 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\KategoriModel;
 use App\Models\SupplierModel;
 use App\Models\RakModel;
 use App\Models\BarangModel;
 use Illuminate\Support\Facades\Validator;
-use App\Events\StokUpdated;
 
 class GudangController extends Controller
 {
@@ -337,7 +335,6 @@ class GudangController extends Controller
 
     // Barang
 
-
     public function index()
     {
         // Mengambil stok, expired, dan rak
@@ -380,6 +377,8 @@ class GudangController extends Controller
             'stok' => $stok
         ], 200);
     }
+
+
 
     public function show($id)
     {

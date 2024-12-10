@@ -382,7 +382,28 @@ class GudangController extends Controller
 
     public function show($id)
     {
+        // Mengambil stok, expired, dan rak untuk barang berdasarkan ID
+        $stok = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_keluar")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) - 
+                     COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+            ->selectRaw("MAX(tb_aktivitas.exp_barang) AS exp_barang") // Ambil tanggal expired terakhir
+            ->selectRaw("MAX(tb_aktivitas.id_rak) AS id_rak") // Ambil id rak terakhir yang terkait dengan barang
+            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+            ->leftJoin('tb_rak', 'tb_aktivitas.id_rak', '=', 'tb_rak.id') // Join dengan tabel rak untuk mendapatkan nama rak
+            ->groupBy('tb_barang.id')
+            ->where('tb_barang.id', $id) // Filter berdasarkan id barang
+            ->first(); // Ambil data satu barang saja
 
+        if (!$stok) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Barang tidak ditemukan',
+            ], 404);
+        }
+
+        // Mengambil data barang lengkap dengan kategori dan supplier
         $barang = BarangModel::with(['kategori', 'supplier'])->find($id);
 
         if (!$barang) {
@@ -392,12 +413,24 @@ class GudangController extends Controller
             ], 404);
         }
 
+        // Gabungkan data stok dan rak ke data barang
+        $barang->stok = $stok->stok ?? 0;
+        $barang->exp_barang = $stok->exp_barang ?? null;
+        $barang->id_rak = $stok->id_rak ?? null;
+
+        // Ambil informasi rak berdasarkan id_rak jika ada
+        if ($barang->id_rak) {
+            $rak = RakModel::find($barang->id_rak);
+            $barang->rak = $rak ? $rak->nama_rak : null; // Set nama rak
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Detail barang',
             'data' => $barang
         ], 200);
     }
+
 
     public function store(Request $request)
     {
@@ -484,12 +517,10 @@ class GudangController extends Controller
             ], 404);
         }
 
-        // Hapus gambar jika ada
         if ($barang->image) {
             \Storage::disk('public')->delete($barang->image);
         }
 
-        // Hapus barang
         $barang->delete();
 
         return response()->json([
@@ -497,54 +528,4 @@ class GudangController extends Controller
             'message' => 'Barang berhasil dihapus',
         ], 200);
     }
-
-
-    // Menampilkann Barang dengan Stok Rendah pada tabel di Dashboard
-    public function getLowStockItems()
-    {
-        $barangStokRendah = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
-        ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
-                     COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
-        ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-        ->groupBy('tb_barang.id')
-        ->havingRaw('stok <= 10') // Kondisi stok rendah
-        ->get();
-
-        // Barang dengan tanggal kadaluarsa terdekat
-        $barangExpTerdekat = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
-        ->selectRaw("MIN(tb_aktivitas.exp_barang) AS exp_barang")
-        ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-        ->groupBy('tb_barang.id')
-        ->orderBy('exp_barang', 'asc') // Urutkan berdasarkan tanggal kadaluarsa
-        ->get();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Data dashboard',
-            'barang_stok_rendah' => $barangStokRendah,
-            'barang_exp_terdekat' => $barangExpTerdekat,
-        ], 200);
-    }
-
-    // Menampilkan Barang denan Tanggal Expired Terdekat
-    public function checkExpires()
-    {
-        $today = Carbon::today()->toDateString(); // Konversi ke string untuk digunakan di query
-
-        // Barang yang sudah kadaluarsa
-        $barangKadaluarsa = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
-            ->selectRaw("MIN(tb_aktivitas.exp_barang) AS exp_barang")
-            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-            ->groupBy('tb_barang.id')
-            ->havingRaw('MIN(tb_aktivitas.exp_barang) < ?', [$today]) // Perbaikan di sini
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Barang yang kadaluarsa',
-            'barang_kadaluarsa' => $barangKadaluarsa,
-        ], 200);
-    }
-
 }
-?>

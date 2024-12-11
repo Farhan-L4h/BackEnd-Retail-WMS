@@ -16,7 +16,6 @@ return new class extends Migration
             $table->unsignedBigInteger('id_aktivitas')->index();
             $table->unsignedBigInteger('id_rak_asal')->index();
             $table->unsignedBigInteger('id_rak_tujuan')->index();
-            $table->integer('jumlah_pindah');
             $table->timestamp('tanggal_dibuat')->nullable();
 	        $table->timestamp('tanggal_update')->nullable();
 

@@ -47,10 +47,10 @@ class AktivitasController extends Controller
                 COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
                 COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok
             ")
-            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-            ->where('tb_barang.id', $request->id_barang)
-            ->groupBy('tb_barang.id')
-            ->value('stok');
+                ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+                ->where('tb_barang.id', $request->id_barang)
+                ->groupBy('tb_barang.id')
+                ->value('stok');
 
             // Tentukan batas stok minimum
             $threshold = 10;
@@ -94,7 +94,7 @@ class AktivitasController extends Controller
     public function show($id)
     {
         // Ambil aktivitas terkait barang
-        $aktivitas = AktivitasModel::with(['barang', 'user','rak'])->find($id);
+        $aktivitas = AktivitasModel::with(['barang', 'user', 'rak'])->find($id);
 
         return response()->json([
             'message' => 'Detail aktivitas berhasil diambil',
@@ -256,11 +256,13 @@ class AktivitasController extends Controller
         // Menggunakan join dengan alias untuk rak asal dan rak tujuan
         $pemindahan = DB::table('tb_pemindahan')
             ->join('tb_aktivitas', 'tb_pemindahan.id_aktivitas', '=', 'tb_aktivitas.id')
+            ->join('tb_barang', 'tb_aktivitas.id_barang', '=', 'tb_barang.id') // Join dengan tb_barang
             ->join('tb_rak as rak_asal', 'tb_pemindahan.id_rak_asal', '=', 'rak_asal.id')
             ->join('tb_rak as rak_tujuan', 'tb_pemindahan.id_rak_tujuan', '=', 'rak_tujuan.id')
             ->select(
                 'tb_pemindahan.*',
                 'tb_aktivitas.id_barang',
+                'tb_barang.nama_barang as nama_barang', // Menambahkan nama_barang dari tb_barang
                 'rak_asal.nama_rak as nama_rak_asal',
                 'rak_tujuan.nama_rak as nama_rak_tujuan'
             )
@@ -280,30 +282,31 @@ class AktivitasController extends Controller
             'id_rak_asal' => 'required|exists:tb_rak,id',
             'id_rak_tujuan' => 'required|exists:tb_rak,id|different:id_rak_asal',
         ]);
-
+    
         DB::beginTransaction();
         try {
+
             // Validasi bahwa aktivitas dan rak asal sesuai
             $aktivitas = DB::table('tb_aktivitas')
                 ->where('id', $request->id_aktivitas)
                 ->first();
-
+    
             if (!$aktivitas) {
                 return response()->json(['message' => 'Aktivitas tidak valid'], 404);
             }
-
+    
             // Validasi bahwa rak asal ada
             $rakAsal = DB::table('tb_rak')->where('id', $request->id_rak_asal)->first();
             if (!$rakAsal) {
                 return response()->json(['message' => 'Rak asal tidak valid'], 404);
             }
-
+    
             // Validasi bahwa rak tujuan ada
             $rakTujuan = DB::table('tb_rak')->where('id', $request->id_rak_tujuan)->first();
             if (!$rakTujuan) {
                 return response()->json(['message' => 'Rak tujuan tidak valid'], 404);
             }
-
+    
             // Simpan data pemindahan
             $pemindahan = PemindahanModel::create([
                 'id_aktivitas' => $request->id_aktivitas,
@@ -312,11 +315,16 @@ class AktivitasController extends Controller
                 'tanggal_dibuat' => now(),
                 'tanggal_update' => now(),
             ]);
-
+    
+            // Update id_rak di tabel tb_aktivitas_barang
+            DB::table('tb_aktivitas')
+                ->where('id', $request->id_aktivitas)
+                ->update(['id_rak' => $request->id_rak_tujuan]);
+    
             DB::commit();
-
+    
             return response()->json([
-                'message' => 'Data pemindahan berhasil disimpan',
+                'message' => 'Data pemindahan berhasil disimpan dan id_rak diperbarui',
                 'data' => $pemindahan,
             ], 201);
         } catch (\Exception $e) {
@@ -327,6 +335,7 @@ class AktivitasController extends Controller
             ], 500);
         }
     }
+    
 
 
     public function destroyPemindahan($id)
@@ -348,4 +357,3 @@ class AktivitasController extends Controller
         }
     }
 }
-?>

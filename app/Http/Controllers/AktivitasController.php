@@ -279,7 +279,6 @@ class AktivitasController extends Controller
             'id_aktivitas' => 'required|exists:tb_aktivitas,id',
             'id_rak_asal' => 'required|exists:tb_rak,id',
             'id_rak_tujuan' => 'required|exists:tb_rak,id|different:id_rak_asal',
-            'jumlah_pindah' => 'required|integer|min:1',
         ]);
 
         DB::beginTransaction();
@@ -310,7 +309,6 @@ class AktivitasController extends Controller
                 'id_aktivitas' => $request->id_aktivitas,
                 'id_rak_asal' => $request->id_rak_asal,
                 'id_rak_tujuan' => $request->id_rak_tujuan,
-                'jumlah_pindah' => $request->jumlah_pindah,
                 'tanggal_dibuat' => now(),
                 'tanggal_update' => now(),
             ]);

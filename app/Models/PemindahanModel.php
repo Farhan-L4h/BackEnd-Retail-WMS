@@ -14,7 +14,7 @@ class PemindahanModel extends Model
     protected $table = 'tb_pemindahan';
     protected $primarykey = 'id';
 
-    protected $fillable = ['id_aktivitas', 'id_rak_asal', 'id_rak_tujuan', 'jumlah_pindah'];
+    protected $fillable = ['id_aktivitas', 'id_rak_asal', 'id_rak_tujuan'];
 
     // Ganti default timestamps
     const CREATED_AT = 'tanggal_dibuat';

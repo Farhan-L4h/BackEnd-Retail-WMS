@@ -10,13 +10,12 @@ class LaporanController extends Controller
     public function index(Request $request)
     {
 
-        // Query untuk mengambil data barang, aktivitas, pemindahan, dan stok
+        // Query untuk mengambil data barang, aktivitas, dan stok
         $data = DB::table('tb_barang')
             ->join('tb_kategori', 'tb_barang.id_kategori', '=', 'tb_kategori.id')
             ->join('tb_supplier', 'tb_barang.id_supplier', '=', 'tb_supplier.id')
             ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
             ->leftJoin('tb_rak', 'tb_aktivitas.id_rak', '=', 'tb_rak.id')
-            ->leftJoin('tb_pemindahan', 'tb_aktivitas.id', '=', 'tb_pemindahan.id_aktivitas')
             ->select(
                 'tb_barang.id as id_barang',
                 'tb_barang.nama_barang',
@@ -34,7 +33,6 @@ class LaporanController extends Controller
                 DB::raw('COALESCE(SUM(CASE WHEN tb_aktivitas.status = "masuk" THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS jumlah_masuk'),
                 DB::raw('COALESCE(SUM(CASE WHEN tb_aktivitas.status = "keluar" THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS jumlah_keluar'),
                 DB::raw('COALESCE(SUM(CASE WHEN tb_aktivitas.status = "masuk" THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN tb_aktivitas.status = "keluar" THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok'),
-                DB::raw('SUM(CASE WHEN tb_pemindahan.id_aktivitas IS NOT NULL THEN tb_pemindahan.jumlah_pindah ELSE 0 END) AS jumlah_pemindahan')
             )
             ->groupBy(
                 'tb_barang.id',
@@ -64,7 +62,6 @@ class LaporanController extends Controller
                 'stok' => $item->stok,
                 'jumlah_masuk' => $item->jumlah_masuk,
                 'jumlah_keluar' => $item->jumlah_keluar,
-                'jumlah_pemindahan' => $item->jumlah_pemindahan,
                 'status' => $item->status,
                 'alasan' => $item->alasan,
                 'expired' => $item->exp_barang ? Carbon::parse($item->exp_barang)->format('d-m-Y') : 'N/A', // Format expired

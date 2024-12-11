@@ -13,7 +13,6 @@ class AktivitasModel extends Model
 
     protected $table = 'tb_aktivitas';
     protected $primaryKey = 'id';
-
     protected $fillable = ['id_barang','username', 'id_rak', 'exp_barang', 'jumlah_barang', 'harga_barang','total_harga','status','alasan'];
 
     // Ganti default timestamps
@@ -39,5 +38,5 @@ class AktivitasModel extends Model
     {
         return $this->hasMany(PemindahanModel::class);
     }
-}
+  }
 ?>

@@ -91,7 +91,8 @@ class AuthController extends Controller
             'username' => 'required|string|max:255|unique:users',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:5|confirmed',
-            'role' => 'default:staff'
+            // 'role' => 'default:staff'
+            'role' => 'required|in:staff,admin'
         ]);
 
         $user = User::create([
@@ -124,32 +125,41 @@ class AuthController extends Controller
 
     // Mengupdate user berdasarkan ID
     public function update(Request $request, $id)
-    {
-        $user = User::find($id);
+{
+    $user = User::find($id);
 
-        if (!$user) {
-            return response()->json(['message' => 'User tidak ditemukan'], 404);
-        }
-
-        $validatedData = $request->validate([
-            'username' => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|email|unique:users,email,' . $user->id,
-            'password' => 'sometimes|required|string|min:6',
-            'role' => 'sometimes|required|string|in:admin,user',
-        ]);
-
-        // Update data user
-        $user->username = $validatedData['username'] ?? $user->username;
-        $user->email = $validatedData['email'] ?? $user->email;
-        $user->password = isset($validatedData['password']) ? Hash::make($validatedData['password']) : $user->password;
-        $user->role = $validatedData['role'] ?? $user->role;
-        $user->save();
-
-        return response()->json([
-            'message' => 'User berhasil diupdate',
-            'user' => $user,
-        ], 200);
+    if (!$user) {
+        return response()->json(['message' => 'User tidak ditemukan'], 404);
     }
+
+    // Perform validation
+    $validatedData = $request->validate([
+        'username' => 'required|string|max:255|unique:users,username,' . $id, // Exclude current user's username from validation
+        'email' => 'required|string|email|max:255|unique:users,email,' . $id, // Exclude current user's email from validation
+        'password' => 'nullable|string|min:5|confirmed', // Make password optional
+        'role' => 'required|in:staff,admin', // Ensure role is one of the accepted values
+    ]);
+
+    // Update the user details
+    $user->username = $validatedData['username'] ?? $user->username;
+    $user->email = $validatedData['email'] ?? $user->email;
+    
+    // If password is provided, update it. If not, keep the current password.
+    if (isset($validatedData['password'])) {
+        $user->password = Hash::make($validatedData['password']);
+    }
+
+    $user->role = $validatedData['role'] ?? $user->role;
+    
+    // Save the updated user
+    $user->save();
+
+    return response()->json([
+        'message' => 'User berhasil diupdate',
+        'user' => $user,
+    ], 200);
+}
+
 
     // Menghapus user berdasarkan ID
     public function destroy($id)

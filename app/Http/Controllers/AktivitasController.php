@@ -282,7 +282,7 @@ class AktivitasController extends Controller
             'id_rak_asal' => 'required|exists:tb_rak,id',
             'id_rak_tujuan' => 'required|exists:tb_rak,id|different:id_rak_asal',
         ]);
-    
+
         DB::beginTransaction();
         try {
 
@@ -290,23 +290,23 @@ class AktivitasController extends Controller
             $aktivitas = DB::table('tb_aktivitas')
                 ->where('id', $request->id_aktivitas)
                 ->first();
-    
+
             if (!$aktivitas) {
                 return response()->json(['message' => 'Aktivitas tidak valid'], 404);
             }
-    
+
             // Validasi bahwa rak asal ada
             $rakAsal = DB::table('tb_rak')->where('id', $request->id_rak_asal)->first();
             if (!$rakAsal) {
                 return response()->json(['message' => 'Rak asal tidak valid'], 404);
             }
-    
+
             // Validasi bahwa rak tujuan ada
             $rakTujuan = DB::table('tb_rak')->where('id', $request->id_rak_tujuan)->first();
             if (!$rakTujuan) {
                 return response()->json(['message' => 'Rak tujuan tidak valid'], 404);
             }
-    
+
             // Simpan data pemindahan
             $pemindahan = PemindahanModel::create([
                 'id_aktivitas' => $request->id_aktivitas,
@@ -315,14 +315,14 @@ class AktivitasController extends Controller
                 'tanggal_dibuat' => now(),
                 'tanggal_update' => now(),
             ]);
-    
+
             // Update id_rak di tabel tb_aktivitas_barang
             DB::table('tb_aktivitas')
                 ->where('id', $request->id_aktivitas)
                 ->update(['id_rak' => $request->id_rak_tujuan]);
-    
+
             DB::commit();
-    
+
             return response()->json([
                 'message' => 'Data pemindahan berhasil disimpan dan id_rak diperbarui',
                 'data' => $pemindahan,
@@ -335,7 +335,7 @@ class AktivitasController extends Controller
             ], 500);
         }
     }
-    
+
 
 
     public function destroyPemindahan($id)

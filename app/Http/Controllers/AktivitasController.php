@@ -96,9 +96,20 @@ class AktivitasController extends Controller
         // Ambil aktivitas terkait barang
         $aktivitas = AktivitasModel::with(['barang', 'user', 'rak'])->find($id);
 
+        // Jika data tidak ditemukan, kembalikan respons error
+        if (!$aktivitas) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Aktivitas tidak ditemukan',
+                'data' => null,
+            ], 404);
+        }
+
+        // Jika data ditemukan, kembalikan respons sukses
         return response()->json([
+            'success' => true,
             'message' => 'Detail aktivitas berhasil diambil',
-            'aktivitas' => $aktivitas,
+            'data' => $aktivitas,
         ], 200);
     }
 

@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use App\Models\KategoriModel;
 use App\Models\SupplierModel;
 use App\Models\RakModel;
 use App\Models\BarangModel;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class GudangController extends Controller
 {
@@ -386,7 +388,7 @@ class GudangController extends Controller
         $stok = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
             ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
             ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_keluar")
-            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) - 
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
                      COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
             ->selectRaw("MAX(tb_aktivitas.exp_barang) AS exp_barang") // Ambil tanggal expired terakhir
             ->selectRaw("MAX(tb_aktivitas.id_rak) AS id_rak") // Ambil id rak terakhir yang terkait dengan barang
@@ -580,5 +582,18 @@ class GudangController extends Controller
         ], 200);
     }
 
+    public function kategoriDistribution()
+    {
+        $kategoriDistribution = BarangModel::select('tb_kategori.nama_kategori', DB::raw('COUNT(tb_barang.id) as total_barang'))
+            ->join('tb_kategori', 'tb_barang.id_kategori', '=', 'tb_kategori.id')
+            ->groupBy('tb_kategori.nama_kategori')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Distribusi kategori barang',
+            'data' => $kategoriDistribution
+        ], 200);
+    }
 
 }

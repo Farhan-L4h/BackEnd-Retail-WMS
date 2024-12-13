@@ -54,8 +54,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     Route::post('/barang', [GudangController::class, 'store'])->name('barang.store');
     Route::put('/barang/{id}/update', [GudangController::class, 'update'])->name('barang.update');
     Route::delete('/barang/{id}/destroy', [GudangController::class, 'destroy'])->name('barang.destroy');
-    Route::get('/low-stock-items', [GudangController::class, 'getLowStockItems'])->name('stokRendah');
-    Route::get('/dashboard/check-expires', [GudangController::class, 'checkExpires'])->name('exp');
 
     // Aktivitas Barang
     Route::get('/aktivitas', [AktivitasController::class, 'indexAktivitas'])->name('aktivitas.index');
@@ -90,4 +88,4 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     Route::get('/kategori-dengan-barang-terbanyak', [GudangController::class, 'kategoriDistribution']);
 
     // Untuk menampilkan supplier yang paling  banyak menyuplai barang ke toko
-    Route::get('/chart-supplier', [AktivitasController::class, 'showChart']);
+    Route::get('/chart-supplier', [GudangController::class, 'getSupplierChartData']);

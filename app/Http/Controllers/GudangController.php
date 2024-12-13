@@ -596,4 +596,22 @@ class GudangController extends Controller
         ], 200);
     }
 
+    public function getSupplierChartData()
+    {
+        // Mengambil total barang yang disuplai oleh setiap supplier
+        $supplierData = DB::table('tb_aktivitas')
+            ->join('tb_barang', 'tb_aktivitas.id_barang', '=', 'tb_barang.id')
+            ->join('tb_supplier', 'tb_barang.id_supplier', '=', 'tb_supplier.id')
+            ->select('tb_supplier.nama_supplier', DB::raw('SUM(tb_aktivitas.jumlah_barang) as total_barang'))
+            ->groupBy('tb_supplier.nama_supplier')
+            ->orderBy('total_barang', 'desc')
+            ->take(10) // Ambil 10 supplier teratas
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data chart supplier berhasil diambil',
+            'data' => $supplierData
+        ], 200);
+    }
 }

@@ -261,6 +261,16 @@ class AktivitasController extends Controller
         }
     }
 
+    // Chart SUPPLIER
+    public function getChartData()
+{
+    // Mengambil total barang masuk dan keluar
+    $chartData = AktivitasModel::selectRaw('status, SUM(jumlah_barang) as total')
+        ->groupBy('status')
+        ->get();
+
+    return response()->json($chartData);
+}
 
     public function indexPemindahan()
     {

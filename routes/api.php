@@ -85,3 +85,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
     //Tabel Barang Expired Terdekat
     Route::get('/expired-barang-terdekat', [GudangController::class, 'checkExpires']);
+
+    // Pie Chart Kategori yang paling banyak memiliki barang
+    Route::get('/kategori-dengan-barang-terbanyak', [GudangController::class, 'kategoriDistribution']);
+
+    // Untuk menampilkan supplier yang paling  banyak menyuplai barang ke toko
+    Route::get('/chart-supplier', [AktivitasController::class, 'showChart']);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use App\Models\KategoriModel;
 use App\Models\SupplierModel;
@@ -581,5 +582,18 @@ class GudangController extends Controller
         ], 200);
     }
 
+    public function kategoriDistribution()
+    {
+        $kategoriDistribution = BarangModel::select('tb_kategori.nama_kategori', DB::raw('COUNT(tb_barang.id) as total_barang'))
+            ->join('tb_kategori', 'tb_barang.id_kategori', '=', 'tb_kategori.id')
+            ->groupBy('tb_kategori.nama_kategori')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Distribusi kategori barang',
+            'data' => $kategoriDistribution
+        ], 200);
+    }
 
 }

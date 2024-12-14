@@ -337,6 +337,7 @@ class GudangController extends Controller
 
     // Barang
 
+
     public function index()
     {
         // Mengambil stok, expired, dan rak
@@ -344,42 +345,49 @@ class GudangController extends Controller
             ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
             ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_keluar")
             ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
-                     COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
-            ->selectRaw("MAX(tb_aktivitas.exp_barang) AS exp_barang") // Ambil tanggal expired terakhir
-            ->selectRaw("MAX(tb_aktivitas.id_rak) AS id_rak") // Ambil id rak terakhir yang terkait dengan barang
+                         COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+            ->selectRaw("MAX(tb_aktivitas.exp_barang) AS exp_barang")
+            ->selectRaw("MAX(tb_aktivitas.id_rak) AS id_rak")
             ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-            ->leftJoin('tb_rak', 'tb_aktivitas.id_rak', '=', 'tb_rak.id') // Join dengan tabel rak untuk mendapatkan nama rak
+            ->leftJoin('tb_rak', 'tb_aktivitas.id_rak', '=', 'tb_rak.id')
             ->groupBy('tb_barang.id')
             ->get();
 
+        $totalMasuk = $stok->sum('total_masuk');
+        $totalKeluar = $stok->sum('total_keluar');
+        $totalStok = $stok->sum('stok');
 
         $barang = BarangModel::with(['kategori', 'supplier'])->get();
 
         // Gabungkan stok, expired, dan lokasi rak dengan data barang berdasarkan id_barang
         $barang = $barang->map(function ($barangItem) use ($stok) {
-            // Cari stok, expired, dan id_rak yang sesuai dengan id_barang
             $stokItem = $stok->firstWhere('id', $barangItem->id);
-            $barangItem->stok = $stokItem ? $stokItem->stok : 0; // Set stok, jika tidak ada set 0
-            $barangItem->exp_barang = $stokItem ? $stokItem->exp_barang : null; // Set expired, jika tidak ada set null
-            $barangItem->id_rak = $stokItem ? $stokItem->id_rak : null; // Set id rak, jika tidak ada set null
+            $barangItem->stok = $stokItem ? $stokItem->stok : 0;
+            $barangItem->exp_barang = $stokItem ? $stokItem->exp_barang : null;
+            $barangItem->id_rak = $stokItem ? $stokItem->id_rak : null;
 
-            // Ambil informasi rak berdasarkan id_rak jika tersedia
+            // Ambil informasi rak berdasarkan id_rak
             if ($barangItem->id_rak) {
                 $rak = RakModel::find($barangItem->id_rak);
-                $barangItem->rak = $rak ? $rak->nama_rak : null; // Set nama rak
+                $barangItem->rak = $rak ? $rak->nama_rak : null;
             }
 
             return $barangItem;
         });
 
+        // Return data dengan total stok, total barang keluar, dan masuk
         return response()->json([
             'success' => true,
             'message' => 'List semua barang',
             'data' => $barang,
-            'stok' => $stok
+            'stok' => $stok,
+            'total' => [
+                'total_masuk' => $totalMasuk,
+                'total_keluar' => $totalKeluar,
+                'total_stok' => $totalStok,
+            ],
         ], 200);
     }
-
 
 
     public function show($id)
@@ -596,4 +604,22 @@ class GudangController extends Controller
         ], 200);
     }
 
+    public function getSupplierChartData()
+    {
+        // Mengambil total barang yang disuplai oleh setiap supplier
+        $supplierData = DB::table('tb_aktivitas')
+            ->join('tb_barang', 'tb_aktivitas.id_barang', '=', 'tb_barang.id')
+            ->join('tb_supplier', 'tb_barang.id_supplier', '=', 'tb_supplier.id')
+            ->select('tb_supplier.nama_supplier', DB::raw('SUM(tb_aktivitas.jumlah_barang) as total_barang'))
+            ->groupBy('tb_supplier.nama_supplier')
+            ->orderBy('total_barang', 'desc')
+            ->take(10) // Ambil 10 supplier teratas
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data chart supplier berhasil diambil',
+            'data' => $supplierData
+        ], 200);
+    }
 }

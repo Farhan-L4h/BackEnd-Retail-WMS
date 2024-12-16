@@ -31,10 +31,11 @@ class BarangModel extends Model
         return $this->belongsTo(SupplierModel::class,'id_supplier', 'id');
     }
 
-    public function aktivitas() :HasMany
+    public function aktivitas(): HasMany
     {
-        return $this->hasMany(    AktivitasModel::class);
+        return $this->hasMany(AktivitasModel::class, 'id_barang', 'id');
     }
+
 
     public function pemindahan() :HasMany
     {

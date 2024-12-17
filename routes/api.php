@@ -89,3 +89,5 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
     // Untuk menampilkan supplier yang paling  banyak menyuplai barang ke toko
     Route::get('/chart-supplier', [GudangController::class, 'getSupplierChartData']);
+
+    Route::get('/dashboard-total', [AktivitasController::class, 'getDashboardStats']);

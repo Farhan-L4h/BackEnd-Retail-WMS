@@ -8,6 +8,7 @@ use App\Models\PemindahanModel;
 use App\Models\BarangModel;
 use App\Events\StokUpdated;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class AktivitasController extends Controller
 {
@@ -452,5 +453,38 @@ class AktivitasController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Terjadi kesalahan saat menghapus data', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    // Fungsi untuk Menghapus barang yang sudah mencapai tanggal expired
+    public function clearExpiredItems()
+    {
+        AktivitasModel::where('exp_barang', '<', now())->delete();
+    }
+
+
+    public function getDashboardStats()
+    {
+       // Panggil fungsi untuk membersihkan barang expired
+        $this->clearExpiredItems();
+
+        // Hitung ulang total stok, barang masuk, dan keluar
+        $stok = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_keluar")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                        COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok")
+            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+            ->groupBy('tb_barang.id')
+            ->get();
+
+        $totalBarangMasuk = $stok->sum('total_masuk');
+        $totalBarangKeluar = $stok->sum('total_keluar');
+        $totalStok = $stok->sum('stok');
+
+        return response()->json([
+            'total_barang_masuk' => $totalBarangMasuk,
+            'total_barang_keluar' => $totalBarangKeluar,
+            'total_stok' => $totalStok
+        ]);
     }
 }

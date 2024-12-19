@@ -455,18 +455,9 @@ class AktivitasController extends Controller
         }
     }
 
-    // Fungsi untuk Menghapus barang yang sudah mencapai tanggal expired
-    public function clearExpiredItems()
-    {
-        AktivitasModel::where('exp_barang', '<', now())->delete();
-    }
-
 
     public function getDashboardStats()
     {
-       // Panggil fungsi untuk membersihkan barang expired
-        $this->clearExpiredItems();
-
         // Hitung ulang total stok, barang masuk, dan keluar
         $stok = BarangModel::select('tb_barang.id', 'tb_barang.nama_barang')
             ->selectRaw("COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS total_masuk")
@@ -487,4 +478,67 @@ class AktivitasController extends Controller
             'total_stok' => $totalStok
         ]);
     }
+
+    public function buangBarang(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:masuk,keluar',
+            'alasan' => 'required|in:dibuang,diambil,return',
+        ]);
+
+        DB::beginTransaction();
+
+        try {
+            $barang = BarangModel::findOrFail($id);
+
+            $stokData = BarangModel::selectRaw("
+                COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
+                COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok
+            ")
+            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+            ->where('tb_barang.id', $id)
+            ->groupBy('tb_barang.id')
+            ->first();
+
+            $stok_terakhir = $stokData->stok ?? 0;
+
+            if ($stok_terakhir <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Stok barang sudah habis.',
+                ], 400);
+            }
+
+            // Tambahkan aktivitas baru
+            $aktivitas = AktivitasModel::create([
+                'id_barang' => $id,
+                'status' => $validated['status'],
+                'jumlah_barang' => $stok_terakhir,
+                'exp_barang' => now(),
+                'alasan' => $validated['alasan'],
+                'tanggal_dibuat' => now(),
+                'tanggal_update' => now(),
+            ]);
+
+            // Update stok barang
+            $barang->update(['stok' => 0]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Aktivitas berhasil ditambahkan.',
+                'data' => $aktivitas,
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat menambah aktivitas.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
 }

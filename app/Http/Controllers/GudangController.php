@@ -571,26 +571,28 @@ class GudangController extends Controller
 
     // Menampilkan Barang denan Tanggal Expired Terdekat
     public function checkExpires()
-    {
-        $today = Carbon::today()->toDateString(); // Hari ini
-        $nextWeek = Carbon::today()->addWeek()->toDateString(); // Tanggal seminggu ke depan
 
-        // Barang yang akan kadaluarsa dalam waktu seminggu ke depan
+    {
+        $today = Carbon::today()->toDateString();
+        $nextWeek = Carbon::today()->addWeek()->toDateString();
+
         $barangAkanKadaluarsa = BarangModel::select(
                 'tb_barang.id',
                 'tb_barang.nama_barang',
+                'tb_aktivitas.exp_barang'
             )
-            ->selectRaw("MIN(tb_aktivitas.exp_barang) AS exp_barang")
-            ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-            ->groupBy('tb_barang.id') 
-            ->havingRaw('MIN(tb_aktivitas.exp_barang) BETWEEN ? AND ?', [$today, $nextWeek]) // Barang kadaluarsa dalam rentang waktu
+            ->join('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang') // Join biasa
+            ->whereBetween('tb_aktivitas.exp_barang', [$today, $nextWeek])
+            ->groupBy('tb_barang.id', 'tb_barang.nama_barang', 'tb_aktivitas.exp_barang') // Pastikan group sesuai
             ->get();
+
 
         return response()->json([
             'success' => true,
             'message' => 'Barang dengan Tanggal Kadaluarsa Terdekat',
             'barang_akan_kadaluarsa' => $barangAkanKadaluarsa,
         ], 200);
+
     }
 
 

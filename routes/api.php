@@ -91,4 +91,4 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     Route::get('/chart-supplier', [GudangController::class, 'getSupplierChartData']);
 
     Route::get('/dashboard-total', [AktivitasController::class, 'getDashboardStats']);
-    Route::post('/buang-barang/{id}', [AktivitasController::class, 'buangBarang']);
+    Route::put('/buang-barang/{id}', [AktivitasController::class, 'buangBarang']);

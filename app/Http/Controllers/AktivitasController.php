@@ -485,32 +485,35 @@ class AktivitasController extends Controller
             'id_barang' => 'required|exists:tb_barang,id',
             'username' => 'required|string',
             'id_rak' => 'required|exists:tb_rak,id',
-            'exp_barang' => 'nullable|date',
+            'exp_barang' => 'nullable',
             'jumlah_barang' => 'required|integer|min:1',
-            'harga_barang' => 'required|integer|min:0',
-            'status' => 'required|in:masuk,keluar',
+            'status' => 'required|in:keluar',
             'alasan' => 'nullable|in:return,dibuang',
         ]);
+
 
         DB::beginTransaction();
 
         try {
-            $aktivitas = AktivitasModel::findOrFail($id); // Menggunakan $id sebagai id_aktivitas
-            $barang = BarangModel::findOrFail($request->id_barang);
+            // Ambil aktivitas berdasarkan ID
+            $aktivitas = AktivitasModel::findOrFail($id);
 
+            // Ambil barang berdasarkan ID
+            $barang = BarangModel::findOrFail($validated['id_barang']);
+
+            // Hitung stok terakhir berdasarkan aktivitas sebelumnya
             $stokData = BarangModel::selectRaw("
                 COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
                 COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok
             ")
             ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
-            ->where('tb_barang.id', $request->id_barang) // Pastikan berdasarkan id_barang
+            ->where('tb_barang.id', $validated['id_barang'])
             ->groupBy('tb_barang.id')
             ->first();
 
             $stok_terakhir = $stokData->stok ?? 0;
-            $harga_barang = $barang->harga;
-            $total_harga = $stok_terakhir * $harga_barang;
 
+            // Cek apakah stok mencukupi
             if ($stok_terakhir <= 0) {
                 return response()->json([
                     'success' => false,
@@ -518,21 +521,21 @@ class AktivitasController extends Controller
                 ], 400);
             }
 
-            // Update aktivitas menggunakan id_aktivitas
+            // Perbarui data aktivitas
             $aktivitas->update([
                 'id_barang' => $validated['id_barang'],
                 'username' => $validated['username'],
                 'id_rak' => $validated['id_rak'],
-                'status' => 'keluar',
+                'status' => $validated['status'],
                 'jumlah_barang' => $stok_terakhir,
                 'exp_barang' => null,
                 'alasan' => $validated['alasan'],
-                'harga_barang' => $harga_barang,
-                'total_harga' => $total_harga,
+                'harga_barang' => $barang->harga,
+                'total_harga' => $stok_terakhir * $barang->harga,
                 'tanggal_update' => now(),
             ]);
 
-            // Update stok barang
+            // Update stok barang menjadi nol
             $barang->update(['stok' => 0]);
 
             DB::commit();
@@ -544,6 +547,7 @@ class AktivitasController extends Controller
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan saat memperbarui aktivitas.',

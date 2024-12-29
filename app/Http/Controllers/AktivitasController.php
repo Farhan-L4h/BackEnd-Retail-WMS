@@ -502,22 +502,30 @@ class AktivitasController extends Controller
             $barang = BarangModel::findOrFail($validated['id_barang']);
 
             // Hitung stok terakhir berdasarkan aktivitas sebelumnya
-            $stokData = BarangModel::selectRaw("
+            $stok = BarangModel::selectRaw("
                 COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) -
                 COALESCE(SUM(CASE WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang ELSE 0 END), 0) AS stok
             ")
             ->leftJoin('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
             ->where('tb_barang.id', $validated['id_barang'])
             ->groupBy('tb_barang.id')
-            ->first();
+            ->value('stok');
 
-            $stok_terakhir = $stokData->stok ?? 0;
+            $stok_terakhir = $stok ?? 0;
 
             // Cek apakah stok mencukupi
             if ($stok_terakhir <= 0) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Stok barang sudah habis.',
+                ], 400);
+            }
+
+            // Cek apakah jumlah barang yang akan dibuang melebihi stok tersedia
+            if ($validated['jumlah_barang'] > $stok_terakhir) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Jumlah barang yang dibuang melebihi stok tersedia.',
                 ], 400);
             }
 
@@ -535,8 +543,11 @@ class AktivitasController extends Controller
                 'tanggal_update' => now(),
             ]);
 
-            // Update stok barang menjadi nol
-            $barang->update(['stok' => 0]);
+           // Update stok barang dan exp_barang menjadi null
+            $barang->update([
+                'stok' => max($stok_terakhir - $validated['jumlah_barang'], 0), // Pastikan stok tidak negatif
+                'exp_barang' => $stok_terakhir - $validated['jumlah_barang'] === 0 ? null : $barang->exp_barang, // Set null jika stok habis
+            ]);
 
             DB::commit();
 

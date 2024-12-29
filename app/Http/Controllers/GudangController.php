@@ -575,16 +575,31 @@ class GudangController extends Controller
         $today = Carbon::today()->toDateString();
         $nextWeek = Carbon::today()->addWeek()->toDateString();
 
-        $barangAkanKadaluarsa = BarangModel::select(
-                'tb_barang.id as id_barang',
-                'tb_barang.nama_barang',
-                'tb_aktivitas.id as id_aktivitas', // Menambahkan id_aktivitas
-                'tb_aktivitas.exp_barang'
-            )
-            ->join('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang') // Join dengan tabel aktivitas
-            ->whereBetween('tb_aktivitas.exp_barang', [$today, $nextWeek])
-            ->groupBy('tb_barang.id', 'tb_barang.nama_barang', 'tb_aktivitas.id', 'tb_aktivitas.exp_barang') // Tambahkan id_aktivitas di groupBy
-            ->get();
+        $barangAkanKadaluarsa = BarangModel::selectRaw("
+        tb_barang.id AS id_barang,
+        tb_barang.nama_barang,
+        tb_rak.id AS id_rak,
+        tb_rak.nama_rak,
+        tb_aktivitas.id AS id_aktivitas,
+        tb_aktivitas.exp_barang,
+        COALESCE(SUM(CASE
+            WHEN tb_aktivitas.status = 'masuk' THEN tb_aktivitas.jumlah_barang
+            ELSE 0 END), 0) -
+        COALESCE(SUM(CASE
+            WHEN tb_aktivitas.status = 'keluar' THEN tb_aktivitas.jumlah_barang
+            ELSE 0 END), 0) AS stok
+        ")
+        ->join('tb_aktivitas', 'tb_barang.id', '=', 'tb_aktivitas.id_barang')
+        ->leftJoin('tb_rak', 'tb_aktivitas.id_rak', '=', 'tb_rak.id')
+        ->whereBetween('tb_aktivitas.exp_barang', [$today, $nextWeek])
+        ->groupBy(
+            'tb_barang.id', 'tb_barang.nama_barang',
+            'tb_aktivitas.id', 'tb_aktivitas.exp_barang',
+            'tb_rak.id', 'tb_rak.nama_rak'
+        )
+        ->having('stok', '>', 0)
+        ->get();
+
 
         return response()->json([
             'success' => true,
